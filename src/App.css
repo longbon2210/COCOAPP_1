@@ -388,6 +388,89 @@
   color: #2563eb;
 }
 
+/* Register Page Specific Sizing & Styles */
+.register-card-container {
+  max-width: 480px;
+}
+
+.register-form {
+  gap: 16px;
+}
+
+/* Form Error Banner */
+.form-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  animation: fadeIn 0.2s ease;
+}
+
+.form-error-banner svg {
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+/* Checkbox Styles */
+.form-checkbox-group {
+  margin: 4px 0 2px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.custom-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: #2563eb;
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.checkbox-text {
+  flex: 1;
+}
+
+.terms-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.terms-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Responsive Styles */
 @media (max-width: 640px) {
   .coco-header {
@@ -407,6 +490,14 @@
     border-radius: 20px;
   }
 
+  .register-card-container {
+    max-width: 100%;
+  }
+
+  .register-card {
+    padding: 28px 18px;
+  }
+
   .card-heading {
     font-size: 24px;
   }
@@ -415,3 +506,4 @@
     font-size: 14px;
   }
 }
+
