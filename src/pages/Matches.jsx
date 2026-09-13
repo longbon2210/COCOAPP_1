@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
+import { accountStorage } from '../auth'
 
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
 
 function readConnections() {
   try {
-    const raw = localStorage.getItem(CONNECTIONS_KEY)
+    const raw = accountStorage.getItem(CONNECTIONS_KEY)
 
     if (!raw) return { items: [], error: '' }
 
@@ -73,7 +74,7 @@ export default function Matches() {
     }
 
     try {
-      localStorage.setItem(CONNECTIONS_KEY, JSON.stringify(next))
+      accountStorage.setItem(CONNECTIONS_KEY, JSON.stringify(next))
       setConnections(next)
       setError('')
       return true

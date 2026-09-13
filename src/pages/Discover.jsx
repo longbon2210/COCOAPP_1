@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
+import { accountStorage } from '../auth'
 
 const PROFILE_KEY = 'cocoapp.profile.v1'
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
 
 function readConnections() {
-  const raw = localStorage.getItem(CONNECTIONS_KEY)
+ const raw = accountStorage.getItem(CONNECTIONS_KEY)
   if (!raw) return []
 
   const items = JSON.parse(raw)
@@ -156,7 +157,7 @@ function normalize(value) {
 
 function readProfile() {
   try {
-    const raw = localStorage.getItem(PROFILE_KEY)
+    const raw = accountStorage.getItem(PROFILE_KEY)
 
     if (!raw) {
       return {
@@ -299,7 +300,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
 
     const updated = [...connections, newConnection]
 
-    localStorage.setItem(
+    accountStorage.setItem(
       CONNECTIONS_KEY,
       JSON.stringify(updated)
     )

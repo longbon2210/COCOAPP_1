@@ -1,32 +1,36 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
+import { loginAccount } from '../auth'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+
+    if (isLoading) return
+
     setError('')
-
-    const correctEmail =
-      email.trim().toLowerCase() === 'demo@coco.app'
-    const correctPassword = password === 'CocoDemo123'
-
-    if (!correctEmail || !correctPassword) {
-      setError('Email hoặc mật khẩu demo chưa đúng.')
-      return
-    }
+    setIsLoading(true)
 
     try {
-      sessionStorage.setItem('cocoapp.demoSession.v1', 'active')
+      await loginAccount(email, password)
       navigate('/dashboard', { replace: true })
-    } catch {
-      setError('Không tạo được phiên demo. Trình duyệt có thể đang chặn lưu trữ.')
+    } catch (error) {
+      setError(
+        error.message ||
+          'Không đăng nhập được. Hãy kiểm tra quyền lưu trữ của trình duyệt.'
+      )
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -53,6 +57,7 @@ export default function Login() {
             <div className="purpose-list">
               <div className="purpose-item purpose-study">
                 <span className="purpose-number">01</span>
+
                 <div>
                   <strong>Học nhóm</strong>
                   <p>Tìm bạn theo ngành học và kỹ năng.</p>
@@ -61,6 +66,7 @@ export default function Login() {
 
               <div className="purpose-item purpose-project">
                 <span className="purpose-number">02</span>
+
                 <div>
                   <strong>Team Project</strong>
                   <p>Tìm người cùng thực hiện ý tưởng.</p>
@@ -69,6 +75,7 @@ export default function Login() {
 
               <div className="purpose-item purpose-room">
                 <span className="purpose-number">03</span>
+
                 <div>
                   <strong>Ghép trọ</strong>
                   <p>Lọc theo giới tính, thành phố và khu vực.</p>
@@ -87,14 +94,15 @@ export default function Login() {
             <div className="login-heading">
               <span className="login-small-title">COCOAPP</span>
               <h2>Chào mừng quay lại</h2>
-              <p>Đăng nhập bằng tài khoản demo bên dưới.</p>
+              <p>Đăng nhập bằng tài khoản cậu đã đăng ký.</p>
             </div>
 
-            <div className="discover-demo-note">
-              <strong>Tài khoản dùng thử</strong>
-              <div>Email: demo@coco.app</div>
-              <div>Mật khẩu: CocoDemo123</div>
-            </div>
+            {location.state?.registered && (
+              <div className="discover-demo-note" role="status">
+                Đăng ký thành công! Nhập email và mật khẩu vừa tạo
+                để đăng nhập.
+              </div>
+            )}
 
             {error && (
               <div className="form-error-banner" role="alert">
@@ -104,46 +112,73 @@ export default function Login() {
 
             <form onSubmit={handleSubmit}>
               <div className="login-field">
-                <label htmlFor="login-email">Email demo</label>
+                <label htmlFor="login-email">Email</label>
+
                 <div className="login-input-wrapper">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="5" width="18" height="14" rx="3" />
+                    <path d="m3 7 9 6 9-6" />
+                  </svg>
+
                   <input
                     id="login-email"
                     name="email"
                     type="email"
-                    placeholder="demo@coco.app"
+                    placeholder="tenban@example.com"
                     value={email}
                     onChange={(event) => {
                       setEmail(event.target.value)
                       setError('')
                     }}
                     autoComplete="username"
+                    disabled={isLoading}
                     required
                   />
                 </div>
               </div>
 
               <div className="login-field">
-                <label htmlFor="login-password">Mật khẩu demo</label>
+                <label htmlFor="login-password">Mật khẩu</label>
+
                 <div className="login-input-wrapper">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="10" width="16" height="11" rx="3" />
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                  </svg>
+
                   <input
                     id="login-password"
                     name="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Nhập mật khẩu demo"
+                    placeholder="Nhập mật khẩu đã đăng ký"
                     value={password}
                     onChange={(event) => {
                       setPassword(event.target.value)
                       setError('')
                     }}
                     autoComplete="current-password"
-                    style={{ paddingRight: 68 }}
+                    disabled={isLoading}
                     required
                   />
 
                   <button
                     type="button"
                     className="password-toggle"
-                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    aria-label={
+                      showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'
+                    }
                     aria-pressed={showPassword}
                     onClick={() => setShowPassword((current) => !current)}
                   >
@@ -152,18 +187,24 @@ export default function Login() {
                 </div>
               </div>
 
-              <button type="submit" className="login-submit">
-                Đăng nhập demo <span aria-hidden="true">→</span>
+              <button
+                type="submit"
+                className="login-submit"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Đang đăng nhập…' : 'Đăng nhập'}
+                {!isLoading && <span aria-hidden="true">→</span>}
               </button>
             </form>
 
             <div className="login-register">
-              <span>Lần đầu trải nghiệm?</span>
-              <Link to="/register">Tạo hồ sơ demo</Link>
+              <span>Chưa có tài khoản?</span>
+              <Link to="/register">Đăng ký tài khoản</Link>
             </div>
 
             <p className="login-safety">
-              Bản mô phỏng một tài khoản, chưa có xác thực từ máy chủ.
+              Tài khoản chỉ dùng trên trình duyệt đã đăng ký.
+              Dùng máy khác, cậu cần đăng ký trên máy đó.
             </p>
           </div>
         </div>

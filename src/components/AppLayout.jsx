@@ -1,8 +1,9 @@
 import { NavLink, Link } from 'react-router-dom'
+import { accountStorage, logoutAccount } from '../auth'
 function getProfileName() {
   try {
     const profile = JSON.parse(
-      localStorage.getItem('cocoapp.profile.v1') || 'null'
+      accountStorage.getItem('cocoapp.profile.v1') || 'null'
     )
 
     return typeof profile?.fullName === 'string'
@@ -77,16 +78,16 @@ export default function AppLayout({ children }) {
             Hồ sơ của tôi
           </NavLink>
 
-         <Link
+      <Link
   to="/login"
   replace
   className="logout-button"
   onClick={(event) => {
     try {
-      sessionStorage.removeItem('cocoapp.demoSession.v1')
+      logoutAccount()
     } catch {
       event.preventDefault()
-      alert('Chưa kết thúc được phiên demo. Hãy đóng tab này.')
+      alert('Không thể đăng xuất. Hãy tải lại trang và thử lại.')
     }
   }}
   style={{

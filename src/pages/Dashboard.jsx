@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
+import { accountStorage } from '../auth'
 
 const profileFields = [
   'fullName',
@@ -46,7 +47,7 @@ function readDashboard() {
   let connections = []
 
   try {
-    const raw = localStorage.getItem('cocoapp.profile.v1')
+    const raw = accountStorage.getItem('cocoapp.profile.v1')
 
     if (raw) {
       const parsed = JSON.parse(raw)
@@ -62,7 +63,7 @@ function readDashboard() {
   }
 
   try {
-    const raw = localStorage.getItem('cocoapp.connections.v1')
+   const raw = accountStorage.getItem('cocoapp.connections.v1')
 
     if (raw) {
       const parsed = JSON.parse(raw)

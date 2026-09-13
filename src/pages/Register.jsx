@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
-
-const PROFILE_KEY = 'cocoapp.profile.v1'
+import { registerAccount } from '../auth'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -17,8 +16,8 @@ export default function Register() {
 
   const [showPassword, setShowPassword] = useState(false)
   const [understandDemo, setUnderstandDemo] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [existingProfile, setExistingProfile] = useState(false)
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -31,29 +30,12 @@ export default function Register() {
     setError('')
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+
+    if (isLoading) return
+
     setError('')
-    setExistingProfile(false)
-
-    const fullName = form.fullName.trim()
-    const university = form.university.trim()
-    const email = form.email.trim()
-
-    if (!fullName || !university || !email) {
-      setError('Hãy điền họ tên, email và trường đại học.')
-      return
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Email chưa đúng định dạng. Ví dụ: sinhvien@example.com.')
-      return
-    }
-
-    if (form.password.length < 6 || !form.password.trim()) {
-      setError('Mật khẩu demo cần ít nhất 6 ký tự và không chỉ chứa dấu cách.')
-      return
-    }
 
     if (form.password !== form.confirmPassword) {
       setError('Hai ô mật khẩu chưa giống nhau. Hãy nhập lại.')
@@ -61,46 +43,31 @@ export default function Register() {
     }
 
     if (!understandDemo) {
-      setError('Hãy đánh dấu xác nhận trải nghiệm demo.')
+      setError('Hãy đánh dấu xác nhận bên dưới.')
       return
     }
 
+    setIsLoading(true)
+
     try {
-      const currentProfile = localStorage.getItem(PROFILE_KEY)
+      await registerAccount({
+        fullName: form.fullName,
+        email: form.email,
+        university: form.university,
+        password: form.password,
+      })
 
-      if (currentProfile !== null) {
-        setExistingProfile(true)
-        setError(
-          'Trình duyệt này đã có hồ sơ demo. Hãy tiếp tục hồ sơ hiện có bằng liên kết bên dưới.'
-        )
-        return
-      }
-
-      localStorage.setItem(
-        PROFILE_KEY,
-        JSON.stringify({
-          fullName,
-          university,
-          major: '',
-          studyYear: '',
-          gender: '',
-          purpose: '',
-          bio: '',
-          city: '',
-          area: '',
-          publicLocation: '',
-          maxDistance: '3',
-          hidePhone: true,
-          hideExactAddress: true,
-        })
-      )
-
-      sessionStorage.setItem('cocoapp.demoSession.v1', 'active')
-navigate('/profile', { replace: true })
-    } catch {
+      navigate('/login', {
+        replace: true,
+        state: { registered: true },
+      })
+    } catch (error) {
       setError(
-        'Không lưu được hồ sơ trên trình duyệt. Thông tin đang nhập vẫn được giữ để cậu thử lại.'
+        error.message ||
+          'Không tạo được tài khoản. Hãy kiểm tra quyền lưu trữ của trình duyệt.'
       )
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -109,7 +76,7 @@ navigate('/profile', { replace: true })
       name: 'fullName',
       label: 'Họ và tên',
       type: 'text',
-      placeholder: 'Tên sinh viên mẫu',
+      placeholder: 'Nhập họ và tên',
       autoComplete: 'name',
       maxLength: 80,
     },
@@ -117,7 +84,7 @@ navigate('/profile', { replace: true })
       name: 'email',
       label: 'Email',
       type: 'email',
-      placeholder: 'sinhvien@example.com',
+      placeholder: 'tenban@example.com',
       autoComplete: 'email',
       maxLength: 254,
     },
@@ -131,7 +98,7 @@ navigate('/profile', { replace: true })
     },
     {
       name: 'password',
-      label: 'Mật khẩu demo',
+      label: 'Mật khẩu',
       type: showPassword ? 'text' : 'password',
       placeholder: 'Ít nhất 6 ký tự',
       autoComplete: 'new-password',
@@ -154,14 +121,14 @@ navigate('/profile', { replace: true })
           <header className="card-header">
             <h1 className="card-heading">Bắt đầu với Coco</h1>
             <p className="card-subtitle">
-              Tạo hồ sơ để tìm người đồng hành.
+              Tạo tài khoản để tìm người đồng hành.
             </p>
           </header>
 
-          <p className="discover-demo-note" id="register-demo-note">
-            Đăng ký mô phỏng: chưa tạo tài khoản thật hoặc xác minh email.
-            Email và mật khẩu không được lưu hay gửi đi.
-            Hãy dùng thông tin mẫu.
+          <p className="discover-demo-note" id="register-note">
+            Bản thử nghiệm: tài khoản chỉ được lưu trên trình duyệt
+            này, chưa đồng bộ sang máy khác hoặc xác minh email.
+            Hãy dùng thông tin thử nghiệm.
           </p>
 
           {error && (
@@ -170,18 +137,10 @@ navigate('/profile', { replace: true })
             </div>
           )}
 
-          {existingProfile && (
-            <p>
-              <Link to="/profile" className="signup-link">
-                Tiếp tục hồ sơ hiện có →
-              </Link>
-            </p>
-          )}
-
           <form
             className="login-form register-form"
             onSubmit={handleSubmit}
-            aria-describedby="register-demo-note"
+            aria-describedby="register-note"
           >
             {fields.map((field) => (
               <div className="form-group" key={field.name}>
@@ -213,6 +172,7 @@ navigate('/profile', { replace: true })
                       ? 6
                       : undefined
                   }
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -223,7 +183,9 @@ navigate('/profile', { replace: true })
                 type="checkbox"
                 className="custom-checkbox"
                 checked={showPassword}
-                onChange={(event) => setShowPassword(event.target.checked)}
+                onChange={(event) =>
+                  setShowPassword(event.target.checked)
+                }
               />
               <span>Hiện cả hai ô mật khẩu</span>
             </label>
@@ -237,23 +199,30 @@ navigate('/profile', { replace: true })
                   setUnderstandDemo(event.target.checked)
                   setError('')
                 }}
+                disabled={isLoading}
                 required
               />
               <span>
-                Tôi hiểu đây là bản demo; tên và trường được lưu
-                trên trình duyệt này để điền tiếp hồ sơ.
+                Tôi hiểu tài khoản và hồ sơ chỉ được lưu trên
+                trình duyệt này.
               </span>
             </label>
 
-            <button type="submit" className="btn-login">
-              Tiếp tục tạo hồ sơ →
+            <button
+              type="submit"
+              className="btn-login"
+              disabled={isLoading}
+            >
+              {isLoading
+                ? 'Đang tạo tài khoản…'
+                : 'Đăng ký tài khoản →'}
             </button>
           </form>
 
           <footer className="card-footer">
-            <span>Đã có hồ sơ demo?</span>
+            <span>Đã có tài khoản?</span>
             <Link to="/login" className="signup-link">
-              Về đăng nhập
+              Đăng nhập
             </Link>
           </footer>
         </div>

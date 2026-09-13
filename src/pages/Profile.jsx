@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppLayout from '../components/AppLayout'
+import { accountStorage } from '../auth'
 
 const STORAGE_KEY = 'cocoapp.profile.v1'
 
@@ -26,7 +27,7 @@ const selectOptions = {
 
 function readProfile() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = accountStorage.getItem(STORAGE_KEY)
 
     if (!raw) {
       return { data: { ...defaultProfile }, warning: '' }
@@ -109,7 +110,7 @@ export default function Profile() {
     }
 
     try {
-      localStorage.setItem(
+      accountStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           ...cleaned,
