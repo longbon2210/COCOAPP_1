@@ -946,3 +946,212 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .matches-summary-stats { margin-top: 13px; }
   .student-card-actions { grid-template-columns: 1fr; }
 }
+
+:root {
+  --coco-canvas: #f5f8fa;
+  --coco-surface: #ffffff;
+  --coco-ink: #162535;
+  --coco-muted: #5d6b78;
+  --coco-primary: #176b78;
+  --coco-primary-dark: #104e59;
+  --coco-primary-soft: #e5f2f3;
+  --coco-coral: #ea8065;
+  --coco-coral-soft: #fff0eb;
+  --coco-mint: #21856d;
+  --coco-mint-soft: #e6f5f0;
+  --coco-line: #dce5ea;
+  --coco-focus: #0b8290;
+  --coco-sidebar: #ffffff;
+  --coco-shadow: 0 10px 28px rgba(22, 37, 53, .07);
+  --v2-bg: var(--coco-canvas);
+  --v2-panel: var(--coco-surface);
+  --v2-ink: var(--coco-ink);
+  --v2-muted: var(--coco-muted);
+  --v2-line: var(--coco-line);
+  --v2-primary: var(--coco-primary);
+  --v2-primary-deep: var(--coco-primary-dark);
+  --v2-coral: var(--coco-coral);
+  --v2-mint: var(--coco-mint);
+}
+
+html {
+  background: var(--coco-canvas);
+}
+
+body {
+  color: var(--coco-ink);
+  background: var(--coco-canvas);
+  font-family: 'Noto Sans', 'Segoe UI', sans-serif;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-offset: 3px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--coco-focus);
+  box-shadow: 0 0 0 1px var(--coco-surface);
+}
+
+.app-shell .product-sidebar {
+  width: 272px;
+  padding: 22px 16px 18px;
+  border-right-color: var(--coco-line);
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 8px 0 28px rgba(22, 37, 53, .04);
+}
+
+.product-main {
+  margin-left: 272px;
+}
+
+.app-shell .product-brand .app-brand-icon {
+  background: var(--coco-primary);
+  box-shadow: 0 8px 18px rgba(23, 107, 120, .2);
+}
+
+.app-shell .product-sidebar .sidebar-link {
+  min-height: 52px;
+  color: var(--coco-muted);
+}
+
+.app-shell .product-sidebar .sidebar-link:hover {
+  color: var(--coco-primary-dark);
+  background: var(--coco-primary-soft);
+  transform: none;
+}
+
+.app-shell .product-sidebar .sidebar-link.active {
+  color: var(--coco-primary-dark);
+  border-color: #c8e3e5;
+  background: var(--coco-primary-soft);
+}
+
+.app-shell .product-sidebar .sidebar-link.active::before {
+  background: var(--coco-coral);
+}
+
+.app-shell .product-sidebar .sidebar-link.active .sidebar-icon {
+  background: var(--coco-primary);
+  box-shadow: 0 6px 14px rgba(23, 107, 120, .2);
+}
+
+.sidebar-promo {
+  background: var(--coco-primary-dark);
+  box-shadow: 0 12px 24px rgba(16, 78, 89, .15);
+}
+
+.product-topbar {
+  height: 72px;
+  border-bottom-color: rgba(220, 229, 234, .92);
+  background: rgba(245, 248, 250, .9);
+}
+
+.topbar-icon-button {
+  width: 44px;
+  height: 44px;
+  color: var(--coco-primary-dark);
+}
+
+.primary-action,
+.secondary-action,
+.banner-button,
+.profile-save-button,
+.login-submit,
+.btn-login {
+  min-height: 44px;
+}
+
+.mobile-bottom-nav {
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(220, 229, 234, .95);
+  border-radius: 16px;
+  background: rgba(22, 37, 53, .97);
+}
+
+.mobile-bottom-nav a {
+  min-height: 44px;
+  color: #b9c8cf;
+  font-size: 10px;
+}
+
+.mobile-bottom-nav a svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-bottom-nav a.active {
+  color: #ffffff;
+  background: var(--coco-primary);
+}
+
+.quick-action-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 1260px) {
+  .app-shell .product-sidebar {
+    width: 88px;
+    padding-inline: 10px;
+  }
+
+  .product-main {
+    margin-left: 88px;
+  }
+
+  .app-shell .product-sidebar .sidebar-link {
+    min-height: 52px;
+  }
+}
+
+@media (max-width: 760px) {
+  .product-main {
+    margin-left: 0;
+  }
+
+  .product-topbar {
+    height: 64px;
+    padding-inline: 15px;
+  }
+
+  .mobile-bottom-nav {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .app-shell .product-main .app-content {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

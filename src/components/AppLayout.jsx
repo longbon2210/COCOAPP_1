@@ -12,7 +12,7 @@ function getProfileName() {
   }
 }
 
-function Icon({ name }) {
+export function Icon({ name }) {
   const paths = {
     dashboard: <><path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></>,
     discover: <><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/><path d="m13.5 8.5-1.4 3.6-3.6 1.4 1.4-3.6 3.6-1.4Z"/></>,
@@ -39,6 +39,13 @@ const menuItems = [
   { to: '/team', icon: 'team', label: 'Team Project', hint: 'Cùng làm dự án' },
   { to: '/roommates', icon: 'room', label: 'Ghép trọ', hint: 'Ở cùng an toàn' },
   { to: '/matches', icon: 'connection', label: 'Kết nối', hint: 'Lời mời & chat' },
+]
+
+const mobileMenuItems = [
+  menuItems[0],
+  menuItems[1],
+  menuItems[5],
+  { to: '/profile', icon: 'profile', label: 'Hồ sơ', hint: 'Thông tin của cậu' },
 ]
 
 const pageTitles = {
@@ -135,7 +142,7 @@ export default function AppLayout({ children }) {
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">
-        {menuItems.slice(0, 5).map((item) => (
+        {mobileMenuItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
             <Icon name={item.icon}/><span>{item.label}</span>
           </NavLink>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import AppLayout from '../components/AppLayout'
+import AppLayout, { Icon } from '../components/AppLayout'
 import { accountStorage } from '../auth'
 
 const profileFields = [
@@ -20,21 +20,21 @@ const profileFields = [
 const quickActions = [
   {
     to: '/study',
-    icon: '📚',
+    icon: 'study',
     title: 'Tìm bạn học',
     text: 'Cùng ôn bài, luyện đề và trao đổi kiến thức.',
     color: 'blue',
   },
   {
     to: '/team',
-    icon: '💡',
+    icon: 'team',
     title: 'Tìm team project',
     text: 'Tìm người có kỹ năng phù hợp với dự án.',
     color: 'orange',
   },
   {
     to: '/roommates',
-    icon: '🏠',
+    icon: 'room',
     title: 'Tìm bạn ghép trọ',
     text: 'Lọc theo giới tính, thành phố và khu vực.',
     color: 'green',
@@ -222,7 +222,7 @@ export default function Dashboard() {
               className={`quick-action-card ${action.color}`}
             >
               <span className="quick-action-icon" aria-hidden="true">
-                {action.icon}
+                <Icon name={action.icon} />
               </span>
               <h3>{action.title}</h3>
               <p>{action.text}</p>
