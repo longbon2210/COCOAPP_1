@@ -156,24 +156,40 @@ export default function Profile() {
   return (
     <AppLayout>
       <section className="profile-page">
-        <header className="profile-page-header">
-          <div>
-            <p className="page-eyebrow">HỒ SƠ CÁ NHÂN</p>
-            <h1>Thông tin của cậu</h1>
+        <header className="profile-page-header profile-hero">
+          <div className="profile-hero-copy">
+            <span className="profile-hero-label">COCO PROFILE</span>
+            <h1>Xây dựng hồ sơ khiến người phù hợp muốn kết nối.</h1>
             <p>
-              Bản demo: chỉ nhập thông tin mẫu. Hồ sơ được lưu
-              trên trình duyệt này, không gửi lên máy chủ.
+              Thể hiện mục tiêu, kỹ năng và khu vực của cậu. Thông tin
+              riêng tư vẫn luôn được bảo vệ.
             </p>
           </div>
 
-          <button
-            type="submit"
-            form="profile-form"
-            className="profile-save-button"
-          >
-            {saved ? '✓ Đã lưu' : 'Lưu thay đổi'}
-          </button>
+          <div className="profile-hero-actions">
+            <span className="profile-visibility"><i /> Chỉ hiển thị thông tin công khai</span>
+            <button
+              type="submit"
+              form="profile-form"
+              className="profile-save-button"
+            >
+              {saved ? '✓ Đã lưu thay đổi' : 'Lưu hồ sơ'}
+            </button>
+          </div>
+
+          <div className="profile-hero-art" aria-hidden="true">
+            <span>{avatarLetter}</span>
+            <i className="profile-art-one" />
+            <i className="profile-art-two" />
+          </div>
         </header>
+
+        <div className="profile-insight-row" aria-label="Tóm tắt hồ sơ">
+          <div><span>Mức hoàn thiện</span><strong>{completion}%</strong></div>
+          <div><span>Mục tiêu</span><strong>{formData.purpose || 'Chưa chọn'}</strong></div>
+          <div><span>Khu vực</span><strong>{formData.area || formData.city || 'Chưa điền'}</strong></div>
+          <div><span>Quyền riêng tư</span><strong>Đang bảo vệ</strong></div>
+        </div>
 
         {error && (
           <div className="form-error-banner" role="alert">

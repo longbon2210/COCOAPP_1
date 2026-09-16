@@ -152,12 +152,12 @@ export default function Matches() {
 
   return (
     <AppLayout>
-      <section className="discover-page">
+      <section className="discover-page matches-page">
         <header className="discover-header">
           <div>
             <p className="page-eyebrow">KẾT NỐI</p>
-            <h1>Lời mời và Matches</h1>
-            <p>Theo dõi lời mời và trò chuyện với người đã kết nối.</p>
+            <h1>Biến lời mời thành những cuộc trò chuyện có ích.</h1>
+            <p>Quản lý kết nối, phản hồi lời mời và tiếp tục trao đổi tại một nơi.</p>
           </div>
 
           <Link to="/discover" className="banner-button">
@@ -170,6 +170,17 @@ export default function Matches() {
           trình diễn người kia chấp nhận hoặc trả lời;
           không gửi thông báo đến người thật.
         </p>
+
+        <div className="matches-summary">
+          <div className="matches-summary-copy">
+            <span className="summary-live-dot" />
+            <div><strong>Không gian kết nối của cậu</strong><small>Dữ liệu hiện được lưu riêng theo tài khoản trên trình duyệt này.</small></div>
+          </div>
+          <div className="matches-summary-stats">
+            <span><strong>{pendingCount}</strong> đang chờ</span>
+            <span><strong>{acceptedCount}</strong> đã kết nối</span>
+          </div>
+        </div>
 
         {error && (
           <div className="form-error-banner" role="alert">
@@ -218,7 +229,7 @@ export default function Matches() {
         ) : (
           <div className="student-card-grid">
             {visibleConnections.map((item) => (
-              <article className="discover-student-card" key={item.id}>
+              <article className="discover-student-card connection-card" key={item.id}>
                 <div className="discover-avatar">
                   {item.name.trim().split(/\s+/).pop()?.[0] || '?'}
                 </div>
@@ -277,7 +288,7 @@ export default function Matches() {
         )}
 
         {chat && tab === 'accepted' && (
-          <section className="discover-detail-panel" aria-label="Trò chuyện">
+          <section className="discover-detail-panel chat-panel" aria-label="Trò chuyện">
             <button
               type="button"
               onClick={() => {
@@ -291,17 +302,10 @@ export default function Matches() {
             <h2>Trò chuyện với {chat.name}</h2>
 
             <div
+              className="chat-message-list"
               role="log"
               aria-label="Tin nhắn"
               aria-live="polite"
-              style={{
-                maxHeight: 320,
-                overflowY: 'auto',
-                margin: '20px 0',
-                padding: 12,
-                background: '#fff',
-                borderRadius: 12,
-              }}
             >
               {chat.messages.length === 0 && (
                 <p>Chưa có tin nhắn. Hãy gửi lời chào đầu tiên.</p>
@@ -310,15 +314,7 @@ export default function Matches() {
               {chat.messages.map((message) => (
                 <div
                   key={message.id}
-                  style={{
-                    padding: 12,
-                    marginBottom: 10,
-                    borderRadius: 10,
-                    background:
-                      message.sender === 'me' ? '#e8f4ed' : '#f2eee8',
-                    overflowWrap: 'anywhere',
-                    whiteSpace: 'pre-wrap',
-                  }}
+                  className={`chat-message ${message.sender === 'me' ? 'from-me' : 'from-other'}`}
                 >
                   <strong>
                     {message.sender === 'me' ? 'Cậu' : `${chat.name} (mô phỏng)`}

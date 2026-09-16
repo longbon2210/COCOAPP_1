@@ -63,7 +63,7 @@ function readDashboard() {
   }
 
   try {
-   const raw = accountStorage.getItem('cocoapp.connections.v1')
+    const raw = accountStorage.getItem('cocoapp.connections.v1')
 
     if (raw) {
       const parsed = JSON.parse(raw)
@@ -141,6 +141,11 @@ export default function Dashboard() {
               Tìm người đồng hành cho việc học, dự án và cuộc sống sinh viên.
             </p>
           </div>
+
+          <div className="dashboard-head-actions">
+            <Link to="/profile" className="secondary-action">Chỉnh hồ sơ</Link>
+            <Link to="/discover" className="primary-action">Khám phá ngay</Link>
+          </div>
         </header>
 
         {warnings.length > 0 && (
@@ -149,35 +154,59 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="dashboard-banner">
-          <div>
-            <span className="banner-tag">
-              {completion === 100 ? 'SẴN SÀNG KẾT NỐI' : 'HỒ SƠ CỦA CẬU'}
-            </span>
+        <div className="dashboard-hero-grid">
+          <div className="dashboard-banner">
+            <div>
+              <span className="banner-tag">
+                {completion === 100 ? 'SẴN SÀNG KẾT NỐI' : 'HỒ SƠ CỦA CẬU'}
+              </span>
 
-            <h2>
-              {completion === 100
-                ? 'Hồ sơ đã đầy đủ. Tìm người đồng hành thôi!'
-                : `Cậu đã hoàn thiện ${completion}% hồ sơ`}
-            </h2>
+              <h2>
+                {completion === 100
+                  ? 'Hồ sơ đã đầy đủ. Tìm người đồng hành thôi!'
+                  : `Cậu đã hoàn thiện ${completion}% hồ sơ`}
+              </h2>
 
-            <p>
-              {completion === 100
-                ? 'Khám phá sinh viên theo mục tiêu và khu vực mong muốn.'
-                : 'Bổ sung thông tin để dùng các bộ lọc phù hợp hơn.'}
-            </p>
+              <p>
+                {completion === 100
+                  ? 'Khám phá sinh viên theo mục tiêu và khu vực mong muốn.'
+                  : 'Bổ sung thông tin để hệ thống gợi ý những kết nối phù hợp hơn.'}
+              </p>
 
-            <Link
-              to={completion === 100 ? '/discover' : '/profile'}
-              className="banner-button"
-            >
-              {completion === 100 ? 'Khám phá ngay →' : 'Cập nhật hồ sơ →'}
-            </Link>
+              <Link
+                to={completion === 100 ? '/discover' : '/profile'}
+                className="banner-button"
+              >
+                {completion === 100 ? 'Khám phá ngay' : 'Cập nhật hồ sơ'}
+                <span aria-hidden="true">↗</span>
+              </Link>
+            </div>
+
+            <div className="banner-orbit" aria-hidden="true">
+              <span className="orbit-center">C</span>
+              <i className="orbit-dot dot-one" />
+              <i className="orbit-dot dot-two" />
+              <i className="orbit-dot dot-three" />
+            </div>
           </div>
 
-          <div className="banner-illustration" aria-hidden="true">
-            ✦
-          </div>
+          <aside className="dashboard-metrics" aria-label="Tóm tắt tài khoản">
+            <article className="metric-card metric-purple">
+              <span>Hồ sơ</span>
+              <strong>{completion}%</strong>
+              <small>{completedFields}/{profileFields.length} thông tin</small>
+            </article>
+            <article className="metric-card metric-orange">
+              <span>Đang chờ</span>
+              <strong>{pending}</strong>
+              <small>Lời mời kết nối</small>
+            </article>
+            <article className="metric-card metric-green">
+              <span>Đã kết nối</span>
+              <strong>{accepted}</strong>
+              <small>Có thể trò chuyện</small>
+            </article>
+          </aside>
         </div>
 
         <div className="section-heading">
@@ -218,25 +247,21 @@ export default function Dashboard() {
                 <Link to="/discover">Khám phá sinh viên →</Link>
               </div>
             ) : (
-              <div style={{ marginTop: 18 }}>
+              <div className="connection-preview-list">
                 {recentConnections.map((item) => (
                   <Link
                     key={item.id}
                     to="/matches"
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: 8,
-                      padding: '14px 0',
-                      borderBottom: '1px solid #eee8df',
-                      color: '#202331',
-                      textDecoration: 'none',
-                    }}
+                    className="connection-preview-item"
                   >
-                    <strong>{item.name}</strong>
-                    <span style={{ color: '#52665c', fontSize: 13 }}>
+                    <span className="connection-mini-avatar">
+                      {item.name.trim().split(/\s+/).pop()?.[0] || '?'}
+                    </span>
+                    <span className="connection-preview-copy">
+                      <strong>{item.name}</strong>
+                      <small>{item.purpose || 'Kết nối sinh viên'}</small>
+                    </span>
+                    <span className={`connection-status ${item.status}`}>
                       {item.status === 'pending'
                         ? 'Đang chờ'
                         : 'Đã kết nối'}
@@ -246,14 +271,9 @@ export default function Dashboard() {
 
                 <Link
                   to="/matches"
-                  style={{
-                    display: 'inline-block',
-                    marginTop: 18,
-                    color: '#a43e2d',
-                    fontWeight: 600,
-                  }}
+                  className="panel-text-link"
                 >
-                  Xem tất cả kết nối →
+                  Xem tất cả kết nối <span>→</span>
                 </Link>
               </div>
             )}

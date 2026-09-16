@@ -7,12 +7,11 @@ export default function Layout({ children }) {
       <header className="coco-header">
         <Link to="/login" className="brand-container" title="Coco App Home">
           <div className="logo-badge" aria-hidden="true">
-            {/* Custom Coco heart/connection spark SVG icon */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                fill="currentColor"
-              />
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="7" cy="8" r="2.5" fill="currentColor" />
+              <circle cx="17" cy="7" r="2.5" fill="currentColor" />
+              <circle cx="12" cy="17" r="2.5" fill="currentColor" />
+              <path d="M9.2 9.2 11 14.6M14.4 14.8l1.8-5.4M9.4 7.8h5.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
             </svg>
           </div>
           <span className="brand-name">
@@ -25,7 +24,7 @@ export default function Layout({ children }) {
             <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
             <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
           </svg>
-          <span>Campus Portal</span>
+          <span>Student Community</span>
         </div>
       </header>
 

@@ -14,6 +14,7 @@ import Discover from './pages/Discover'
 import Matches from './pages/Matches'
 import { currentAccount } from './auth'
 import './App.css'
+import './ProductV2.css'
 
 function RequireLogin({ children }) {
   const account = currentAccount()

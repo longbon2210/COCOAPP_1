@@ -7,7 +7,7 @@ const PROFILE_KEY = 'cocoapp.profile.v1'
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
 
 function readConnections() {
- const raw = accountStorage.getItem(CONNECTIONS_KEY)
+  const raw = accountStorage.getItem(CONNECTIONS_KEY)
   if (!raw) return []
 
   const items = JSON.parse(raw)
@@ -329,10 +329,13 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
         <header className="discover-header">
           <div>
             <p className="page-eyebrow">KHÁM PHÁ</p>
-            <h1>Tìm người đồng hành</h1>
-            <p>Học cùng nhau, làm dự án và tìm bạn ở ghép.</p>
+            <h1>Những kết nối phù hợp đang ở ngay quanh cậu.</h1>
+            <p>Tìm theo mục tiêu, kỹ năng và khu vực — không phải lướt ngẫu nhiên.</p>
           </div>
-          <span aria-live="polite">{filteredStudents.length} kết quả</span>
+          <div className="discover-head-actions">
+            <span aria-live="polite"><strong>{filteredStudents.length}</strong> kết quả phù hợp</span>
+            <Link to="/profile" className="secondary-action">Cập nhật tiêu chí</Link>
+          </div>
         </header>
 
         <p className="discover-demo-note">
@@ -340,6 +343,12 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
           Khoảng cách không được tính từ vị trí của cậu.
           Lời mời chỉ mô phỏng trong trang hiện tại.
         </p>
+
+        <div className="discover-trust-bar">
+          <div><span>✓</span><strong>Ẩn số điện thoại</strong><small>Chỉ chia sẻ khi cậu muốn</small></div>
+          <div><span>⌖</span><strong>Vị trí gần đúng</strong><small>Không hiển thị số nhà</small></div>
+          <div><span>◎</span><strong>Lọc theo mục tiêu</strong><small>Học tập, dự án hoặc ghép trọ</small></div>
+        </div>
 
         {profileResult.notice && (
           <div className="form-error-banner" role="status">
@@ -462,10 +471,15 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
             <div className="student-card-grid">
               {filteredStudents.map((student) => {
                 const sent = sentIds.includes(student.id)
+                const purposeClass = student.purpose === 'Học nhóm'
+                  ? 'purpose-study-card'
+                  : student.purpose === 'Team Project'
+                    ? 'purpose-team-card'
+                    : 'purpose-room-card'
 
                 return (
                   <article
-                    className="discover-student-card"
+                    className={`discover-student-card ${purposeClass}`}
                     key={student.id}
                   >
                     <div className="discover-avatar">
