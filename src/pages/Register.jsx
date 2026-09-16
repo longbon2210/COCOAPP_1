@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import { registerAccount } from '../auth'
@@ -18,6 +18,12 @@ export default function Register() {
   const [understandDemo, setUnderstandDemo] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
+  const errorRef = useRef(null)
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus({ preventScroll: true })
+  }, [error])
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -28,6 +34,12 @@ export default function Register() {
     }))
 
     setError('')
+    setFieldErrors((current) => {
+      if (!current[name]) return current
+      const next = { ...current }
+      delete next[name]
+      return next
+    })
   }
 
   async function handleSubmit(event) {
@@ -37,16 +49,26 @@ export default function Register() {
 
     setError('')
 
+    const nextErrors = {}
+    for (const field of ['fullName', 'email', 'university', 'password', 'confirmPassword']) {
+      if (!form[field].trim()) nextErrors[field] = `Hãy nhập ${fields.find((item) => item.name === field)?.label.toLowerCase()}.`
+    }
+
     if (form.password !== form.confirmPassword) {
-      setError('Hai ô mật khẩu chưa giống nhau. Hãy nhập lại.')
-      return
+      nextErrors.confirmPassword = 'Hai ô mật khẩu chưa giống nhau.'
     }
 
     if (!understandDemo) {
-      setError('Hãy đánh dấu xác nhận bên dưới.')
+      nextErrors.understandDemo = 'Hãy xác nhận thông tin lưu trữ trên trình duyệt.'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setError('Hãy kiểm tra các thông tin được đánh dấu bên dưới.')
       return
     }
 
+    setFieldErrors({})
     setIsLoading(true)
 
     try {
@@ -132,8 +154,13 @@ export default function Register() {
           </p>
 
           {error && (
-            <div className="form-error-banner" role="alert">
-              {error}
+            <div ref={errorRef} className="form-error-banner auth-error-summary" role="alert" tabIndex="-1">
+              <strong>{error}</strong>
+              <ul>
+                {Object.entries(fieldErrors).map(([field, message]) => (
+                  <li key={field}><a href={`#register-${field}`}>{message}</a></li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -141,6 +168,7 @@ export default function Register() {
             className="login-form register-form"
             onSubmit={handleSubmit}
             aria-describedby="register-note"
+            noValidate
           >
             {fields.map((field) => (
               <div className="form-group" key={field.name}>
@@ -156,11 +184,6 @@ export default function Register() {
                   name={field.name}
                   type={field.type}
                   className="form-input"
-                  style={{
-                    paddingLeft: 14,
-                    paddingRight: 14,
-                    boxSizing: 'border-box',
-                  }}
                   value={form[field.name]}
                   onChange={handleChange}
                   placeholder={field.placeholder}
@@ -173,13 +196,16 @@ export default function Register() {
                       : undefined
                   }
                   disabled={isLoading}
-                  required
+                  aria-invalid={Boolean(fieldErrors[field.name])}
+                  aria-describedby={fieldErrors[field.name] ? `register-${field.name}-error` : undefined}
                 />
+                {fieldErrors[field.name] && <small id={`register-${field.name}-error`} className="auth-field-error">{fieldErrors[field.name]}</small>}
               </div>
             ))}
 
             <label className="checkbox-label">
               <input
+                id="register-show-password"
                 type="checkbox"
                 className="custom-checkbox"
                 checked={showPassword}
@@ -192,6 +218,7 @@ export default function Register() {
 
             <label className="checkbox-label">
               <input
+                id="register-understand-demo"
                 type="checkbox"
                 className="custom-checkbox"
                 checked={understandDemo}
@@ -201,12 +228,15 @@ export default function Register() {
                 }}
                 disabled={isLoading}
                 required
+                aria-invalid={Boolean(fieldErrors.understandDemo)}
+                aria-describedby={fieldErrors.understandDemo ? 'register-understand-demo-error' : undefined}
               />
               <span>
                 Tôi hiểu tài khoản và hồ sơ chỉ được lưu trên
                 trình duyệt này.
               </span>
             </label>
+            {fieldErrors.understandDemo && <small id="register-understand-demo-error" className="auth-field-error auth-checkbox-error">{fieldErrors.understandDemo}</small>}
 
             <button
               type="submit"

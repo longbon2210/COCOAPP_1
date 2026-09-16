@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import AppLayout from '../components/AppLayout'
+import AppLayout, { Icon } from '../components/AppLayout'
 import { accountStorage } from '../auth'
 
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
@@ -50,6 +50,7 @@ export default function Matches() {
   const [tab, setTab] = useState('pending')
   const [chatId, setChatId] = useState(null)
   const [draft, setDraft] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
   const chatHeadingRef = useRef(null)
   const lastChatTriggerRef = useRef(null)
 
@@ -89,6 +90,7 @@ export default function Matches() {
       accountStorage.setItem(CONNECTIONS_KEY, JSON.stringify(next))
       setConnections(next)
       setError('')
+      setStatusMessage('Đã cập nhật kết nối.')
       return true
     } catch {
       setError('Chưa lưu được thay đổi. Hãy thử lại.')
@@ -105,15 +107,21 @@ export default function Matches() {
 
     if (saveConnections(next)) {
       setTab('accepted')
+      setStatusMessage('Lời mời đã được chấp nhận trong bản demo.')
     }
   }
 
   function cancelRequest(id) {
+    const connection = connections.find((item) => item.id === id)
+    if (!connection || !window.confirm(`Hủy lời mời gửi cho ${connection.name}?`)) {
+      return
+    }
+
     const next = connections.filter(
       (item) => !(item.id === id && item.status === 'pending')
     )
 
-    saveConnections(next)
+    if (saveConnections(next)) setStatusMessage('Đã hủy lời mời kết nối.')
   }
 
   function openChat(id) {
@@ -207,11 +215,20 @@ export default function Matches() {
           </div>
         )}
 
-        <div className="purpose-tabs" aria-label="Trạng thái kết nối">
+        {statusMessage && (
+          <div className="matches-status-message" role="status" aria-live="polite">
+            <Icon name="connection" /> {statusMessage}
+          </div>
+        )}
+
+        <div className="purpose-tabs matches-tabs" role="tablist" aria-label="Trạng thái kết nối">
           <button
             type="button"
             className={tab === 'pending' ? 'active' : ''}
-            aria-pressed={tab === 'pending'}
+            id="pending-tab"
+            role="tab"
+            aria-selected={tab === 'pending'}
+            aria-controls="matches-panel"
             onClick={() => {
               setTab('pending')
               closeChat()
@@ -223,7 +240,10 @@ export default function Matches() {
           <button
             type="button"
             className={tab === 'accepted' ? 'active' : ''}
-            aria-pressed={tab === 'accepted'}
+            id="accepted-tab"
+            role="tab"
+            aria-selected={tab === 'accepted'}
+            aria-controls="matches-panel"
             onClick={() => {
               setTab('accepted')
               closeChat()
@@ -234,7 +254,7 @@ export default function Matches() {
         </div>
 
         {visibleConnections.length === 0 ? (
-          <div className="discover-empty-state">
+          <div id="matches-panel" role="tabpanel" aria-labelledby={`${tab}-tab`} className="discover-empty-state">
             <h2>
               {tab === 'pending'
                 ? 'Chưa có lời mời đang chờ'
@@ -248,7 +268,7 @@ export default function Matches() {
             <Link to="/discover">Mở Khám phá →</Link>
           </div>
         ) : tab === 'accepted' ? (
-          <div className={`messenger-workspace ${chat ? 'has-active-chat' : ''}`}>
+          <div id="matches-panel" role="tabpanel" aria-labelledby="accepted-tab" className={`messenger-workspace ${chat ? 'has-active-chat' : ''}`}>
             <aside className="conversation-list" aria-label="Danh sách cuộc trò chuyện">
               <div className="conversation-list-header">
                 <div>
@@ -290,7 +310,7 @@ export default function Matches() {
                     className="chat-back-button"
                     onClick={closeChat}
                   >
-                    <span aria-hidden="true">←</span> Quay lại
+                    <Icon name="arrow" /> Quay lại
                   </button>
                   <div className="chat-header-person">
                     <span className="conversation-avatar">
@@ -415,7 +435,7 @@ export default function Matches() {
                         className="connect-student-button"
                         onClick={() => acceptRequest(item.id)}
                       >
-                        Mô phỏng người kia chấp nhận
+                        Chấp nhận (mô phỏng)
                       </button>
                     </>
                   ) : (

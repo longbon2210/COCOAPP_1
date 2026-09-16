@@ -221,6 +221,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   const [selectedId, setSelectedId] = useState(null)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [undoStudent, setUndoStudent] = useState(null)
+  const [requestError, setRequestError] = useState('')
   const [sentIds, setSentIds] = useState(() => {
   try {
     return readConnections().map((item) => item.id)
@@ -346,10 +347,9 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
     )
 
     setSentIds(updated.map((item) => item.id))
+    setRequestError('')
   } catch {
-    alert(
-      'Chưa gửi được lời mời vì không đọc hoặc lưu được dữ liệu. Dữ liệu cũ chưa bị ghi đè.'
-    )
+    setRequestError('Chưa gửi được lời mời vì không đọc hoặc lưu được dữ liệu. Dữ liệu cũ chưa bị ghi đè.')
   }
 }
 
@@ -395,6 +395,12 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
           <div className="form-error-banner" role="status">
             {profileResult.notice}{' '}
             <Link to="/profile">Mở Hồ sơ</Link>
+          </div>
+        )}
+
+        {requestError && (
+          <div className="form-error-banner" role="alert" aria-live="assertive">
+            {requestError}
           </div>
         )}
 

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import AppLayout from '../components/AppLayout'
+import { useEffect, useRef, useState } from 'react'
+import AppLayout, { Icon } from '../components/AppLayout'
 import { accountStorage } from '../auth'
 
 const STORAGE_KEY = 'cocoapp.profile.v1'
@@ -23,6 +23,30 @@ const selectOptions = {
   gender: ['Nam', 'Nữ', 'Khác', 'Không muốn công khai'],
   purpose: ['Học nhóm', 'Team Project', 'Ghép trọ'],
   maxDistance: ['1', '3', '5', '10'],
+}
+
+const requiredFields = [
+  'fullName',
+  'university',
+  'major',
+  'studyYear',
+  'gender',
+  'purpose',
+  'city',
+  'area',
+  'maxDistance',
+]
+
+const fieldLabels = {
+  fullName: 'Họ và tên',
+  university: 'Trường đại học',
+  major: 'Ngành học',
+  studyYear: 'Năm học',
+  gender: 'Giới tính',
+  purpose: 'Mục tiêu kết nối',
+  city: 'Tỉnh / Thành phố',
+  area: 'Khu vực trong tỉnh / thành phố',
+  maxDistance: 'Khoảng cách mong muốn',
 }
 
 function readProfile() {
@@ -70,6 +94,10 @@ export default function Profile() {
   const [formData, setFormData] = useState(initial.data)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(initial.warning)
+  const [fieldErrors, setFieldErrors] = useState({})
+  const statusRef = useRef(null)
+
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(initial.data)
 
   const completedFields = Object.values(formData).filter(
     (value) => value.trim() !== ''
@@ -82,6 +110,36 @@ export default function Profile() {
   const lastName = formData.fullName.trim().split(/\s+/).pop()
   const avatarLetter = lastName ? lastName[0].toUpperCase() : '?'
 
+  useEffect(() => {
+    function handleBeforeUnload(event) {
+      if (!isDirty) return
+
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
+  useEffect(() => {
+    if (error) {
+      statusRef.current?.focus({ preventScroll: true })
+    }
+  }, [error])
+
+  function validateForm(data) {
+    const nextErrors = {}
+
+    for (const field of requiredFields) {
+      if (!data[field]) {
+        nextErrors[field] = `${fieldLabels[field]} là thông tin bắt buộc.`
+      }
+    }
+
+    return nextErrors
+  }
+
   function handleChange(event) {
     const { name, value } = event.target
 
@@ -91,6 +149,25 @@ export default function Profile() {
     }))
 
     setSaved(false)
+    setError('')
+    setFieldErrors((current) => {
+      if (!current[name]) return current
+
+      const next = { ...current }
+      delete next[name]
+      return next
+    })
+  }
+
+  function handleBlur(event) {
+    const { name, value } = event.target
+
+    if (requiredFields.includes(name) && !value.trim()) {
+      setFieldErrors((current) => ({
+        ...current,
+        [name]: `${fieldLabels[name]} là thông tin bắt buộc.`,
+      }))
+    }
   }
 
   function handleSubmit(event) {
@@ -104,8 +181,11 @@ export default function Profile() {
       ])
     )
 
-    if (!cleaned.fullName || !cleaned.university || !cleaned.major) {
-      setError('Hãy điền họ tên, trường và ngành học, không chỉ nhập dấu cách.')
+    const nextErrors = validateForm(cleaned)
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setError('Hãy bổ sung các thông tin bắt buộc được đánh dấu bên dưới.')
       return
     }
 
@@ -120,6 +200,7 @@ export default function Profile() {
       )
 
       setFormData(cleaned)
+      setFieldErrors({})
       setError('')
       setSaved(true)
     } catch {
@@ -130,14 +211,19 @@ export default function Profile() {
   }
 
   function renderSelect(name, label) {
+    const errorId = `${name}-error`
+
     return (
       <label className="profile-field">
-        <span>{label}</span>
+        <span>{label} <em>Bắt buộc</em></span>
         <select
+          id={`profile-${name}`}
           name={name}
           value={formData[name]}
           onChange={handleChange}
-          required
+          onBlur={handleBlur}
+          aria-invalid={Boolean(fieldErrors[name])}
+          aria-describedby={fieldErrors[name] ? errorId : undefined}
         >
           <option value="">Chọn thông tin</option>
 
@@ -149,8 +235,13 @@ export default function Profile() {
             </option>
           ))}
         </select>
+        {fieldErrors[name] && <small id={errorId} className="profile-field-error">{fieldErrors[name]}</small>}
       </label>
     )
+  }
+
+  function fieldLabel(name, label, optional = false) {
+    return <span>{label} <em>{optional ? 'Không bắt buộc' : 'Bắt buộc'}</em></span>
   }
 
   return (
@@ -173,7 +264,8 @@ export default function Profile() {
               form="profile-form"
               className="profile-save-button"
             >
-              {saved ? '✓ Đã lưu thay đổi' : 'Lưu hồ sơ'}
+              {saved ? 'Đã lưu thay đổi' : 'Lưu hồ sơ'}
+              <Icon name="arrow" />
             </button>
           </div>
 
@@ -184,7 +276,7 @@ export default function Profile() {
           </div>
         </header>
 
-        <div className="profile-insight-row" aria-label="Tóm tắt hồ sơ">
+        <div className="profile-insight-row profile-mobile-summary" aria-label="Tóm tắt hồ sơ">
           <div><span>Mức hoàn thiện</span><strong>{completion}%</strong></div>
           <div><span>Mục tiêu</span><strong>{formData.purpose || 'Chưa chọn'}</strong></div>
           <div><span>Khu vực</span><strong>{formData.area || formData.city || 'Chưa điền'}</strong></div>
@@ -192,15 +284,22 @@ export default function Profile() {
         </div>
 
         {error && (
-          <div className="form-error-banner" role="alert">
+          <div ref={statusRef} className="form-error-banner" role="alert" tabIndex="-1">
             {error}
           </div>
         )}
 
         {saved && (
-          <div className="profile-success-message" role="status">
+          <div className="profile-success-message" role="status" aria-live="polite">
             Đã lưu trên trình duyệt này. Cậu có thể tải lại trang
             để kiểm tra.
+          </div>
+        )}
+
+        {isDirty && (
+          <div className="profile-unsaved-notice" role="status" aria-live="polite">
+            <span><Icon name="profile" /> Cậu có thay đổi chưa được lưu.</span>
+            <button type="submit" form="profile-form">Lưu thay đổi</button>
           </div>
         )}
 
@@ -214,12 +313,12 @@ export default function Profile() {
             <p>{formData.major || 'Chưa điền ngành học'}</p>
 
             <span className="verified-student">
-              Hồ sơ demo · Chưa xác minh
+              <Icon name="profile" /> Xác minh tài khoản: Chưa xác minh
             </span>
 
             <div className="profile-completion">
               <div className="completion-heading">
-                <span>Thông tin đã điền</span>
+                <span>Mức độ hoàn thiện hồ sơ</span>
                 <strong>{completion}%</strong>
               </div>
 
@@ -259,6 +358,7 @@ export default function Profile() {
             id="profile-form"
             className="profile-form-card"
             onSubmit={handleSubmit}
+            noValidate
           >
             <div className="profile-form-section">
               <div className="profile-section-heading">
@@ -274,50 +374,64 @@ export default function Profile() {
 
               <div className="profile-form-grid">
                 <label className="profile-field">
-                  <span>Họ và tên</span>
+                  {fieldLabel('fullName', 'Họ và tên')}
                   <input
+                    id="profile-fullName"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.fullName)}
+                    aria-describedby={fieldErrors.fullName ? 'fullName-error' : undefined}
                     placeholder="Tên sinh viên mẫu"
                     maxLength={80}
-                    required
                   />
+                  {fieldErrors.fullName && <small id="fullName-error" className="profile-field-error">{fieldErrors.fullName}</small>}
                 </label>
 
                 <label className="profile-field">
-                  <span>Trường đại học</span>
+                  {fieldLabel('university', 'Trường đại học')}
                   <input
+                    id="profile-university"
                     name="university"
                     value={formData.university}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.university)}
+                    aria-describedby={fieldErrors.university ? 'university-error' : undefined}
                     placeholder="Nhập tên trường"
                     maxLength={120}
-                    required
                   />
+                  {fieldErrors.university && <small id="university-error" className="profile-field-error">{fieldErrors.university}</small>}
                 </label>
 
                 <label className="profile-field">
-                  <span>Ngành học</span>
+                  {fieldLabel('major', 'Ngành học')}
                   <input
+                    id="profile-major"
                     name="major"
                     value={formData.major}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.major)}
+                    aria-describedby={fieldErrors.major ? 'major-error' : undefined}
                     placeholder="Nhập ngành học"
                     maxLength={100}
-                    required
                   />
+                  {fieldErrors.major && <small id="major-error" className="profile-field-error">{fieldErrors.major}</small>}
                 </label>
 
                 {renderSelect('studyYear', 'Năm học')}
               </div>
 
               <label className="profile-field profile-field-full">
-                <span>Giới thiệu ngắn</span>
+                {fieldLabel('bio', 'Giới thiệu ngắn', true)}
                 <textarea
+                  id="profile-bio"
                   name="bio"
                   value={formData.bio}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   placeholder="Ví dụ: Mình tìm bạn cùng ôn Cấu trúc dữ liệu."
                   maxLength={180}
                 />
@@ -330,7 +444,7 @@ export default function Profile() {
                 <span>02</span>
                 <div>
                   <h2>Giới tính và mục tiêu</h2>
-                  <p>Thông tin dùng cho bộ lọc kết nối.</p>
+                  <p>Chọn mục tiêu để nhận gợi ý phù hợp hơn.</p>
                 </div>
               </div>
 
@@ -341,6 +455,7 @@ export default function Profile() {
 
               <div className="gender-safety-note">
                 <p>
+                  <Icon name="room" />
                   Lọc cùng giới tính là quy tắc ghép trọ của bản
                   demo, không phải xác minh danh tính hay bảo đảm
                   an toàn. Không áp dụng giới hạn này cho học nhóm
@@ -360,35 +475,45 @@ export default function Profile() {
 
                            <div className="profile-form-grid">
                 <label className="profile-field">
-                  <span>Tỉnh / Thành phố</span>
+                  {fieldLabel('city', 'Tỉnh / Thành phố')}
                   <input
+                    id="profile-city"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.city)}
+                    aria-describedby={fieldErrors.city ? 'city-error' : undefined}
                     placeholder="Ví dụ: Hà Nội"
                     maxLength={80}
-                    required
                   />
+                  {fieldErrors.city && <small id="city-error" className="profile-field-error">{fieldErrors.city}</small>}
                 </label>
 
                 <label className="profile-field">
-                  <span>Khu vực trong tỉnh / thành phố</span>
+                  {fieldLabel('area', 'Khu vực trong tỉnh / thành phố')}
                   <input
+                    id="profile-area"
                     name="area"
                     value={formData.area}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.area)}
+                    aria-describedby={fieldErrors.area ? 'area-error' : undefined}
                     placeholder="Ví dụ: Cầu Giấy, Thanh Xuân"
                     maxLength={100}
-                    required
                   />
+                  {fieldErrors.area && <small id="area-error" className="profile-field-error">{fieldErrors.area}</small>}
                 </label>
 
                 <label className="profile-field">
-                  <span>Tên đường hoặc địa danh gần đó</span>
+                  {fieldLabel('publicLocation', 'Tên đường hoặc địa danh gần đó', true)}
                   <input
+                    id="profile-publicLocation"
                     name="publicLocation"
                     value={formData.publicLocation}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Ví dụ: gần trường, tên đường"
                     maxLength={160}
                   />
@@ -400,7 +525,7 @@ export default function Profile() {
               <div className="privacy-options">
                 <div className="privacy-option">
                   <div>
-                    <strong>Không công khai số điện thoại</strong>
+                      <strong><Icon name="profile" /> Không công khai số điện thoại</strong>
                     <span>
                       Bản demo không thu thập hay lưu số điện thoại.
                     </span>
@@ -410,7 +535,7 @@ export default function Profile() {
 
                 <div className="privacy-option">
                   <div>
-                    <strong>Không công khai địa chỉ chính xác</strong>
+                      <strong><Icon name="room" /> Không công khai địa chỉ chính xác</strong>
                     <span>
                       Chỉ nhập địa danh gần đó hoặc tên đường.
                     </span>

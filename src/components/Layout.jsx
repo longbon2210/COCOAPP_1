@@ -35,13 +35,13 @@ export default function Layout({ children }) {
 
       {/* Footer */}
       <footer className="coco-footer">
-        <p>© 2026 Coco App. Connecting university students worldwide.</p>
+        <p>© 2026 Coco App. Kết nối sinh viên đại học.</p>
         <div className="footer-links">
-          <a href="#privacy" className="footer-link">Privacy Policy</a>
-          <span>•</span>
-          <a href="#terms" className="footer-link">Terms of Service</a>
-          <span>•</span>
-          <a href="#help" className="footer-link">Campus Support</a>
+          <span className="footer-link footer-link-disabled">Chính sách riêng tư</span>
+          <span aria-hidden="true">·</span>
+          <span className="footer-link footer-link-disabled">Điều khoản sử dụng</span>
+          <span aria-hidden="true">·</span>
+          <span className="footer-link footer-link-disabled">Hỗ trợ sinh viên</span>
         </div>
       </footer>
     </div>

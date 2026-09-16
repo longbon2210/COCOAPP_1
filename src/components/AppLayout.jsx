@@ -1,4 +1,5 @@
 import { NavLink, Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import { accountStorage, logoutAccount } from '../auth'
 
 function getProfileName() {
@@ -62,16 +63,22 @@ const pageTitles = {
 
 export default function AppLayout({ children }) {
   const location = useLocation()
+  const mainRef = useRef(null)
+  const [logoutError, setLogoutError] = useState('')
   const fullName = getProfileName()
   const avatarLetter = fullName.split(/\s+/).pop()[0].toUpperCase()
   const pageTitle = pageTitles[location.pathname] || 'CocoApp'
+
+  useEffect(() => {
+    mainRef.current?.focus({ preventScroll: true })
+  }, [location.pathname])
 
   function handleLogout(event) {
     try {
       logoutAccount()
     } catch {
       event.preventDefault()
-      alert('Không thể đăng xuất. Hãy tải lại trang và thử lại.')
+      setLogoutError('Không thể đăng xuất. Hãy tải lại trang và thử lại.')
     }
   }
 
@@ -140,7 +147,13 @@ export default function AppLayout({ children }) {
           </div>
         </header>
 
-        <main className="app-content">{children}</main>
+        {logoutError && (
+          <div className="shell-status-message" role="alert" aria-live="assertive">
+            {logoutError}
+          </div>
+        )}
+
+        <main ref={mainRef} className="app-content" tabIndex="-1">{children}</main>
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="Điều hướng điện thoại">

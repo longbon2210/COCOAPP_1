@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import { loginAccount } from '../auth'
@@ -12,6 +12,24 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
+  const errorRef = useRef(null)
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus({ preventScroll: true })
+  }, [error])
+
+  function handleFieldChange(field, value) {
+    if (field === 'email') setEmail(value)
+    if (field === 'password') setPassword(value)
+    setError('')
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -19,6 +37,18 @@ export default function Login() {
     if (isLoading) return
 
     setError('')
+
+    const nextErrors = {}
+    if (!email.trim()) nextErrors.email = 'Nhập email để tiếp tục.'
+    if (!password) nextErrors.password = 'Nhập mật khẩu để tiếp tục.'
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setError('Hãy kiểm tra các thông tin bắt buộc bên dưới.')
+      return
+    }
+
+    setFieldErrors({})
     setIsLoading(true)
 
     try {
@@ -105,12 +135,19 @@ export default function Login() {
             )}
 
             {error && (
-              <div className="form-error-banner" role="alert">
-                {error}
+              <div ref={errorRef} className="form-error-banner auth-error-summary" role="alert" tabIndex="-1">
+                <strong>{error}</strong>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <ul>
+                    {Object.entries(fieldErrors).map(([field, message]) => (
+                      <li key={field}><a href={`#login-${field}`}>{message}</a></li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div className="login-field">
                 <label htmlFor="login-email">Email</label>
 
@@ -132,15 +169,14 @@ export default function Login() {
                     type="email"
                     placeholder="tenban@example.com"
                     value={email}
-                    onChange={(event) => {
-                      setEmail(event.target.value)
-                      setError('')
-                    }}
+                    onChange={(event) => handleFieldChange('email', event.target.value)}
                     autoComplete="username"
                     disabled={isLoading}
-                    required
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
                   />
                 </div>
+                {fieldErrors.email && <small id="login-email-error" className="auth-field-error">{fieldErrors.email}</small>}
               </div>
 
               <div className="login-field">
@@ -164,13 +200,11 @@ export default function Login() {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Nhập mật khẩu đã đăng ký"
                     value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value)
-                      setError('')
-                    }}
+                    onChange={(event) => handleFieldChange('password', event.target.value)}
                     autoComplete="current-password"
                     disabled={isLoading}
-                    required
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
                   />
 
                   <button
@@ -185,6 +219,7 @@ export default function Login() {
                     {showPassword ? 'Ẩn' : 'Hiện'}
                   </button>
                 </div>
+                {fieldErrors.password && <small id="login-password-error" className="auth-field-error">{fieldErrors.password}</small>}
               </div>
 
               <button
