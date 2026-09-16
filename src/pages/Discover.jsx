@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import AppLayout from '../components/AppLayout'
+import AppLayout, { Icon } from '../components/AppLayout'
 import { accountStorage } from '../auth'
+import { VIETNAM_LOCATIONS } from '../data/vietnamLocations'
 
 const PROFILE_KEY = 'cocoapp.profile.v1'
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
@@ -218,6 +219,8 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   const [area, setArea] = useState(profile.area || '')
   const [maxDistance, setMaxDistance] = useState(initialDistance)
   const [selectedId, setSelectedId] = useState(null)
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [undoStudent, setUndoStudent] = useState(null)
   const [sentIds, setSentIds] = useState(() => {
   try {
     return readConnections().map((item) => item.id)
@@ -226,11 +229,13 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   }
 })
   const [hiddenIds, setHiddenIds] = useState([])
+  const dialogRef = useRef(null)
+  const lastProfileTriggerRef = useRef(null)
 
   const canFilterRoommates = ['Nam', 'Nữ', 'Khác'].includes(profile.gender)
 
   const cities = uniqueLocations([
-    ...students.map((student) => student.city),
+    ...VIETNAM_LOCATIONS,
     profile.city,
   ])
 
@@ -272,6 +277,41 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   const selectedStudent = filteredStudents.find(
     (student) => student.id === selectedId
   )
+
+  useEffect(() => {
+    if (!selectedStudent) return undefined
+
+    dialogRef.current?.focus({ preventScroll: true })
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        closeProfile()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [selectedStudent])
+
+  function openProfile(studentId) {
+    lastProfileTriggerRef.current = document.activeElement
+    setSelectedId(studentId)
+  }
+
+  function closeProfile(restoreFocus = true) {
+    setSelectedId(null)
+    if (restoreFocus) {
+      lastProfileTriggerRef.current?.focus({ preventScroll: true })
+    }
+  }
+
+  function skipProfile() {
+    if (!selectedStudent) return
+
+    setHiddenIds((current) => [...current, selectedStudent.id])
+    setUndoStudent(selectedStudent)
+    closeProfile(false)
+  }
 
   function sendRequest(id) {
   const student = filteredStudents.find((item) => item.id === id)
@@ -320,7 +360,8 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
     setArea('')
     setMaxDistance('10')
     setHiddenIds([])
-    setSelectedId(null)
+    setUndoStudent(null)
+    closeProfile(false)
   }
 
   return (
@@ -345,9 +386,9 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
         </p>
 
         <div className="discover-trust-bar">
-          <div><span>✓</span><strong>Ẩn số điện thoại</strong><small>Chỉ chia sẻ khi cậu muốn</small></div>
-          <div><span>⌖</span><strong>Vị trí gần đúng</strong><small>Không hiển thị số nhà</small></div>
-          <div><span>◎</span><strong>Lọc theo mục tiêu</strong><small>Học tập, dự án hoặc ghép trọ</small></div>
+          <div><span><Icon name="profile" /></span><strong>Ẩn số điện thoại</strong><small>Chỉ chia sẻ khi cậu muốn</small></div>
+          <div><span><Icon name="room" /></span><strong>Vị trí gần đúng</strong><small>Không hiển thị số nhà</small></div>
+          <div><span><Icon name="discover" /></span><strong>Lọc theo mục tiêu</strong><small>Học tập, dự án hoặc ghép trọ</small></div>
         </div>
 
         {profileResult.notice && (
@@ -358,7 +399,21 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
         )}
 
         <div className="discover-layout">
-          <aside className="discover-filter-panel">
+          <button
+            type="button"
+            className="discover-filter-toggle"
+            aria-expanded={isFiltersOpen}
+            aria-controls="discover-filters"
+            onClick={() => setIsFiltersOpen((current) => !current)}
+          >
+            <span><Icon name="discover" /> Bộ lọc</span>
+            <strong>{isFiltersOpen ? 'Thu gọn' : 'Mở bộ lọc'}</strong>
+          </button>
+
+          <aside
+            id="discover-filters"
+            className={`discover-filter-panel ${isFiltersOpen ? 'is-open' : ''}`}
+          >
             <div className="filter-title">
               <h2>Bộ lọc</h2>
               <button type="button" onClick={resetFilters}>
@@ -451,6 +506,14 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
           </aside>
 
           <div className="discover-results">
+            <div className="discover-results-toolbar">
+              <div>
+                <strong>{filteredStudents.length} kết quả phù hợp</strong>
+                <span>Ưu tiên theo mục tiêu và khu vực cậu chọn</span>
+              </div>
+              <button type="button" onClick={resetFilters}>Đặt lại bộ lọc</button>
+            </div>
+
             <div className="purpose-tabs" aria-label="Mục tiêu kết nối">
               {purposes.map((item) => (
                 <button
@@ -460,7 +523,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
                   aria-pressed={purpose === item}
                   onClick={() => {
                     setPurpose(item)
-                    setSelectedId(null)
+                    closeProfile(false)
                   }}
                 >
                   {item}
@@ -486,14 +549,20 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
                       {student.name.split(' ').slice(-1)[0][0]}
                     </div>
 
+                    <span className="student-purpose">
+                      {student.purpose}
+                    </span>
+
                     <div className="student-main-info">
                       <h2>{student.name}</h2>
                       <p>{student.major}</p>
                     </div>
 
-                    <span className="student-purpose">
-                      {student.purpose}
-                    </span>
+                    <div className="student-skill-list">
+                      {student.skills.map((skill) => (
+                        <span key={skill}>{skill}</span>
+                      ))}
+                    </div>
 
                     <p className="student-location">
                       {locationText(student)}
@@ -504,17 +573,11 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
 
                     <p className="student-about">{student.about}</p>
 
-                    <div className="student-skill-list">
-                      {student.skills.map((skill) => (
-                        <span key={skill}>{skill}</span>
-                      ))}
-                    </div>
-
                     <div className="student-card-actions">
                       <button
                         type="button"
                         className="view-student-button"
-                        onClick={() => setSelectedId(student.id)}
+                        onClick={() => openProfile(student.id)}
                       >
                         Xem hồ sơ
                       </button>
@@ -535,6 +598,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
 
             {filteredStudents.length === 0 && (
               <div className="discover-empty-state">
+                <div className="discover-empty-icon" aria-hidden="true"><Icon name="discover" /></div>
                 <h2>Chưa có kết quả phù hợp</h2>
                 <p>
                   Bộ dữ liệu mẫu chưa bao phủ mọi khu vực.
@@ -546,54 +610,83 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
               </div>
             )}
 
-            {selectedStudent && (
-              <section
-                className="discover-detail-panel"
-                aria-label="Chi tiết hồ sơ"
-              >
+            {undoStudent && (
+              <div className="discover-undo-notice" role="status">
+                <span>Đã ẩn hồ sơ {undoStudent.name} khỏi kết quả hiện tại.</span>
                 <button
                   type="button"
-                  onClick={() => setSelectedId(null)}
+                  onClick={() => {
+                    setHiddenIds((current) => current.filter((id) => id !== undoStudent.id))
+                    setUndoStudent(null)
+                  }}
                 >
-                  Đóng chi tiết
+                  Hoàn tác
                 </button>
-
-                <h2>{selectedStudent.name}</h2>
-                <p>{selectedStudent.major}</p>
-                <p>{selectedStudent.about}</p>
-                <p>Khu vực: {locationText(selectedStudent)}</p>
-                <p>Liên hệ: không công khai trong bản demo.</p>
-
-                <div className="student-card-actions">
-                  <button
-                    type="button"
-                    className="view-student-button"
-                    onClick={() => {
-                      setHiddenIds((current) => [
-                        ...current,
-                        selectedStudent.id,
-                      ])
-                      setSelectedId(null)
-                    }}
-                  >
-                    Bỏ qua hồ sơ
-                  </button>
-
-                  <button
-                    type="button"
-                    className="connect-student-button"
-                    disabled={sentIds.includes(selectedStudent.id)}
-                    onClick={() => sendRequest(selectedStudent.id)}
-                  >
-                    {sentIds.includes(selectedStudent.id)
-                      ? 'Đã gửi lời mời'
-                      : 'Gửi lời mời'}
-                  </button>
-                </div>
-              </section>
+              </div>
             )}
           </div>
         </div>
+
+        {selectedStudent && (
+          <div className="discover-dialog-backdrop" role="presentation" onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeProfile()
+          }}>
+            <section
+              ref={dialogRef}
+              className="discover-profile-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="discover-dialog-title"
+              tabIndex="-1"
+            >
+              <header className="discover-dialog-header">
+                <div className="discover-avatar">
+                  {selectedStudent.name.split(' ').slice(-1)[0][0]}
+                </div>
+                <div>
+                  <p className="discover-dialog-kicker">HỒ SƠ SINH VIÊN</p>
+                  <h2 id="discover-dialog-title">{selectedStudent.name}</h2>
+                  <p>{selectedStudent.purpose} · {selectedStudent.major}</p>
+                </div>
+                <button type="button" className="discover-dialog-close" onClick={closeProfile}>
+                  Đóng
+                </button>
+              </header>
+
+              <div className="discover-dialog-body">
+                <div className="discover-dialog-section">
+                  <span>Giới thiệu</span>
+                  <p>{selectedStudent.about}</p>
+                </div>
+                <div className="discover-dialog-section">
+                  <span>Khu vực gần đúng</span>
+                  <p>{locationText(selectedStudent)}</p>
+                  <small>Không hiển thị số nhà hoặc thông tin liên hệ cá nhân.</small>
+                </div>
+                <div className="discover-dialog-section">
+                  <span>Kỹ năng và điểm chung</span>
+                  <div className="student-skill-list">
+                    {selectedStudent.skills.map((skill) => <span key={skill}>{skill}</span>)}
+                  </div>
+                </div>
+              </div>
+
+              <footer className="discover-dialog-actions">
+                <button type="button" className="view-student-button" onClick={skipProfile}>
+                  Bỏ qua hồ sơ
+                </button>
+                <button
+                  type="button"
+                  className="connect-student-button"
+                  disabled={sentIds.includes(selectedStudent.id)}
+                  onClick={() => sendRequest(selectedStudent.id)}
+                >
+                  {sentIds.includes(selectedStudent.id) ? 'Đã gửi lời mời' : 'Gửi lời mời'}
+                </button>
+              </footer>
+            </section>
+          </div>
+        )}
       </section>
     </AppLayout>
   )

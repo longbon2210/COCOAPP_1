@@ -947,6 +947,696 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .student-card-actions { grid-template-columns: 1fr; }
 }
 
+/* Discover Phase 3 */
+.discover-page {
+  max-width: 1280px;
+  padding-top: 40px;
+  padding-bottom: 64px;
+}
+
+.discover-header {
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.discover-header h1 {
+  max-width: 760px;
+  color: var(--coco-ink);
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+
+.discover-header > div > p:last-child {
+  max-width: 650px;
+  margin-top: 12px;
+  color: var(--coco-muted);
+  font-size: 16px;
+}
+
+.discover-head-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.discover-head-actions > span {
+  padding: 0;
+  color: var(--coco-muted);
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  text-align: right;
+}
+
+.discover-head-actions > span strong {
+  display: block;
+  color: var(--coco-ink);
+  font-size: 22px;
+}
+
+.discover-demo-note {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  color: var(--coco-muted);
+  border-color: var(--coco-line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  font-size: 12px;
+}
+
+.discover-trust-bar {
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.discover-trust-bar > div {
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  padding: 15px;
+  border-color: var(--coco-line);
+  border-radius: 10px;
+  background: var(--coco-surface);
+  box-shadow: none;
+}
+
+.discover-trust-bar > div > span {
+  width: 38px;
+  height: 38px;
+  color: var(--coco-primary);
+  border-radius: 9px;
+  background: var(--coco-primary-soft);
+}
+
+.discover-trust-bar > div > span svg {
+  width: 19px;
+  height: 19px;
+}
+
+.discover-trust-bar strong {
+  color: var(--coco-ink);
+  font-size: 12px;
+}
+
+.discover-trust-bar small {
+  color: var(--coco-muted);
+  font-size: 11px;
+}
+
+.discover-layout {
+  position: relative;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.discover-filter-panel {
+  position: sticky;
+  top: 92px;
+  align-self: start;
+  padding: 20px;
+  border: 1px solid var(--coco-line);
+  border-radius: 12px;
+  background: var(--coco-surface);
+  box-shadow: none;
+}
+
+.filter-title {
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--coco-line);
+}
+
+.filter-title h2 {
+  color: var(--coco-ink);
+  font-size: 17px;
+}
+
+.filter-title button,
+.discover-results-toolbar button {
+  min-height: 44px;
+  padding: 0 8px;
+  color: var(--coco-primary-dark);
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.filter-title button:hover,
+.discover-results-toolbar button:hover {
+  text-decoration: underline;
+}
+
+.discover-filter-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 17px;
+}
+
+.discover-filter-field > span {
+  color: var(--coco-ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.discover-filter-field input,
+.discover-filter-field select {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #fbfcfc;
+  font-size: 13px;
+}
+
+.privacy-filter-note {
+  margin-top: 20px;
+  padding: 15px;
+  color: #315f59;
+  border: 1px solid #c9e6df;
+  border-radius: 10px;
+  background: #eff9f6;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.privacy-filter-note strong {
+  color: #184d46;
+  font-size: 13px;
+}
+
+.privacy-filter-note p {
+  margin-top: 9px;
+}
+
+.privacy-filter-note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin-top: 4px;
+  color: var(--coco-primary-dark);
+  font-weight: 750;
+}
+
+.discover-filter-toggle {
+  display: none;
+}
+
+.discover-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.discover-results-toolbar div {
+  display: grid;
+  gap: 3px;
+}
+
+.discover-results-toolbar strong {
+  color: var(--coco-ink);
+  font-size: 15px;
+}
+
+.discover-results-toolbar span {
+  color: var(--coco-muted);
+  font-size: 12px;
+}
+
+.discover-results-toolbar button {
+  flex: 0 0 auto;
+}
+
+.purpose-tabs {
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-color: var(--coco-line);
+  border-radius: 9px;
+  background: var(--coco-surface);
+}
+
+.purpose-tabs button {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.purpose-tabs button.active {
+  background: var(--coco-primary);
+  box-shadow: none;
+}
+
+.student-card-grid {
+  gap: 14px;
+}
+
+.discover-student-card {
+  display: flex;
+  min-height: 360px;
+  padding: 22px;
+  border: 1px solid var(--coco-line);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.discover-student-card::before {
+  height: 3px;
+}
+
+.discover-student-card:hover {
+  border-color: #a9cfd3;
+  box-shadow: 0 8px 20px rgba(22, 37, 53, .07);
+  transform: translateY(-2px);
+}
+
+.discover-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--coco-primary);
+  box-shadow: none;
+  font-size: 16px;
+}
+
+.discover-student-card:nth-child(even) .discover-avatar {
+  background: var(--coco-mint);
+}
+
+.student-purpose {
+  align-self: flex-start;
+  order: 1;
+  margin-top: 16px;
+  padding: 6px 9px;
+  color: var(--coco-primary-dark);
+  border: 1px solid #c6e1e3;
+  border-radius: 6px;
+  background: var(--coco-primary-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.student-main-info {
+  order: 2;
+  margin-top: 10px;
+}
+
+.student-main-info h2 {
+  color: var(--coco-ink);
+  font-size: 17px;
+}
+
+.student-main-info p {
+  margin-top: 4px;
+  color: var(--coco-muted);
+  font-size: 13px;
+}
+
+.student-skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  order: 3;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.student-skill-list span {
+  padding: 5px 8px;
+  color: var(--coco-ink);
+  border-color: var(--coco-line);
+  border-radius: 5px;
+  background: #f7fafb;
+  font-size: 11px;
+}
+
+.student-location {
+  order: 4;
+  margin-top: 14px;
+  color: var(--coco-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.student-about {
+  order: 5;
+  margin-top: 9px;
+  color: var(--coco-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.student-card-actions {
+  order: 6;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.student-card-actions button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.view-student-button,
+.connect-student-button {
+  padding-inline: 12px;
+  box-shadow: none;
+}
+
+.view-student-button {
+  color: var(--coco-ink);
+  border-color: var(--coco-line);
+  background: #fff;
+}
+
+.view-student-button:hover {
+  color: var(--coco-primary-dark);
+  border-color: #a9cfd3;
+  background: #f5fbfb;
+}
+
+.connect-student-button {
+  color: #fff;
+  border-color: var(--coco-primary);
+  background: var(--coco-primary);
+}
+
+.connect-student-button:hover:not(:disabled) {
+  border-color: var(--coco-primary-dark);
+  background: var(--coco-primary-dark);
+}
+
+.discover-empty-state {
+  padding: 54px 24px;
+  border: 1px solid var(--coco-line);
+  border-radius: 12px;
+  background: var(--coco-surface);
+  box-shadow: none;
+  text-align: center;
+}
+
+.discover-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 14px;
+  color: var(--coco-primary);
+  border-radius: 10px;
+  background: var(--coco-primary-soft);
+}
+
+.discover-empty-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.discover-empty-state h2 {
+  color: var(--coco-ink);
+  font-size: 19px;
+}
+
+.discover-empty-state p {
+  max-width: 440px;
+  margin: 8px auto 18px;
+  color: var(--coco-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.discover-empty-state button {
+  min-height: 44px;
+  padding: 0 15px;
+  color: var(--coco-primary-dark);
+  border: 1px solid #a9cfd3;
+  border-radius: 8px;
+  background: #f5fbfb;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.discover-undo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 11px 13px;
+  color: var(--coco-muted);
+  border: 1px solid var(--coco-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.discover-undo-notice button {
+  min-height: 36px;
+  color: var(--coco-primary-dark);
+  border: 0;
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.discover-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(22, 37, 53, .42);
+}
+
+.discover-profile-dialog {
+  width: min(100%, 560px);
+  max-height: min(720px, calc(100dvh - 48px));
+  overflow-y: auto;
+  border: 1px solid var(--coco-line);
+  border-radius: 14px;
+  background: var(--coco-surface);
+  box-shadow: 0 24px 60px rgba(22, 37, 53, .2);
+}
+
+.discover-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px;
+  border-bottom: 1px solid var(--coco-line);
+}
+
+.discover-dialog-header > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.discover-dialog-kicker {
+  color: var(--coco-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.discover-dialog-header h2 {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--coco-ink);
+  font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-dialog-header h2 + p {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--coco-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-dialog-close {
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--coco-muted);
+  border: 1px solid var(--coco-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.discover-dialog-body {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.discover-dialog-section {
+  display: grid;
+  gap: 6px;
+}
+
+.discover-dialog-section > span {
+  color: var(--coco-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.discover-dialog-section p {
+  color: var(--coco-ink);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.discover-dialog-section small {
+  color: var(--coco-muted);
+  font-size: 12px;
+}
+
+.discover-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 16px 22px 22px;
+  border-top: 1px solid var(--coco-line);
+}
+
+.discover-dialog-actions button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .discover-page {
+    padding-top: 26px;
+  }
+
+  .discover-header {
+    display: block;
+    margin-bottom: 20px;
+  }
+
+  .discover-header h1 {
+    font-size: clamp(29px, 8.5vw, 38px);
+  }
+
+  .discover-header > div > p:last-child {
+    font-size: 15px;
+  }
+
+  .discover-head-actions {
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+  }
+
+  .discover-head-actions > span {
+    text-align: left;
+  }
+
+  .discover-head-actions > span strong {
+    font-size: 19px;
+  }
+
+  .discover-trust-bar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .discover-layout {
+    display: block;
+  }
+
+  .discover-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 48px;
+    margin-bottom: 10px;
+    padding: 0 14px;
+    color: var(--coco-ink);
+    border: 1px solid var(--coco-line);
+    border-radius: 9px;
+    background: var(--coco-surface);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .discover-filter-toggle span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .discover-filter-toggle svg {
+    width: 18px;
+    height: 18px;
+    color: var(--coco-primary);
+  }
+
+  .discover-filter-panel {
+    display: none;
+    position: static;
+    margin-bottom: 16px;
+  }
+
+  .discover-filter-panel.is-open {
+    display: block;
+  }
+
+  .discover-results-toolbar {
+    align-items: flex-start;
+  }
+
+  .discover-results-toolbar button {
+    padding-inline: 0;
+  }
+
+  .student-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .discover-student-card {
+    min-height: 0;
+  }
+
+  .discover-dialog-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .discover-profile-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px 14px 0 0;
+  }
+
+  .discover-dialog-header {
+    padding: 18px 16px;
+  }
+
+  .discover-dialog-body {
+    padding: 18px 16px;
+  }
+
+  .discover-dialog-actions {
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
 :root {
   --coco-canvas: #f5f8fa;
   --coco-surface: #ffffff;
