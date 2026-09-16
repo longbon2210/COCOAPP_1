@@ -52,7 +52,9 @@ export default function Matches() {
   const [draft, setDraft] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const chatHeadingRef = useRef(null)
+  const messageListRef = useRef(null)
   const lastChatTriggerRef = useRef(null)
+  const shouldFocusChatRef = useRef(false)
 
   const pendingCount = connections.filter(
     (item) => item.status === 'pending'
@@ -69,16 +71,25 @@ export default function Matches() {
   const chat = connections.find(
     (item) => item.id === chatId && item.status === 'accepted'
   )
+  const chatMessageCount = chat?.messages.length ?? 0
 
   const acceptedConnections = connections.filter(
     (item) => item.status === 'accepted'
   )
 
   useEffect(() => {
-    if (chat) {
+    if (chat && shouldFocusChatRef.current) {
       chatHeadingRef.current?.focus({ preventScroll: true })
+      shouldFocusChatRef.current = false
     }
-  }, [chat])
+  }, [chatId])
+
+  useEffect(() => {
+    if (chatId !== null) {
+      const messageList = messageListRef.current
+      if (messageList) messageList.scrollTop = messageList.scrollHeight
+    }
+  }, [chatId, chatMessageCount])
 
   function saveConnections(next) {
     if (initial.error) {
@@ -126,6 +137,10 @@ export default function Matches() {
 
   function openChat(id) {
     lastChatTriggerRef.current = document.activeElement
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    shouldFocusChatRef.current = window.matchMedia('(max-width: 760px)').matches
     setChatId(id)
     setDraft('')
   }
@@ -287,6 +302,7 @@ export default function Matches() {
                       type="button"
                       className={`conversation-item ${chatId === item.id ? 'active' : ''}`}
                       aria-pressed={chatId === item.id}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => openChat(item.id)}
                     >
                       <span className="conversation-avatar">
@@ -331,6 +347,7 @@ export default function Matches() {
                 </header>
 
                 <div
+                  ref={messageListRef}
                   className="chat-message-list"
                   role="log"
                   aria-label={`Tin nhắn với ${chat.name}`}

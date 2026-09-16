@@ -92,12 +92,13 @@ function readProfile() {
 export default function Profile() {
   const [initial] = useState(readProfile)
   const [formData, setFormData] = useState(initial.data)
+  const [savedProfile, setSavedProfile] = useState(initial.data)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(initial.warning)
   const [fieldErrors, setFieldErrors] = useState({})
   const statusRef = useRef(null)
 
-  const isDirty = JSON.stringify(formData) !== JSON.stringify(initial.data)
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(savedProfile)
 
   const completedFields = Object.values(formData).filter(
     (value) => value.trim() !== ''
@@ -200,6 +201,7 @@ export default function Profile() {
       )
 
       setFormData(cleaned)
+      setSavedProfile(cleaned)
       setFieldErrors({})
       setError('')
       setSaved(true)
