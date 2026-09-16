@@ -136,15 +136,10 @@ export default function Dashboard() {
         <header className="dashboard-topbar">
           <div>
             <p className="page-eyebrow">{dateLabel}</p>
-            <h1>Chào {displayName}, hôm nay cậu muốn làm gì?</h1>
+            <h1>Chào {displayName}, cùng bắt đầu một ngày hiệu quả nhé.</h1>
             <p className="page-description">
               Tìm người đồng hành cho việc học, dự án và cuộc sống sinh viên.
             </p>
-          </div>
-
-          <div className="dashboard-head-actions">
-            <Link to="/profile" className="secondary-action">Chỉnh hồ sơ</Link>
-            <Link to="/discover" className="primary-action">Khám phá ngay</Link>
           </div>
         </header>
 
@@ -158,19 +153,19 @@ export default function Dashboard() {
           <div className="dashboard-banner">
             <div>
               <span className="banner-tag">
-                {completion === 100 ? 'SẴN SÀNG KẾT NỐI' : 'HỒ SƠ CỦA CẬU'}
+                {completion === 100 ? 'HỒ SƠ ĐÃ SẴN SÀNG' : 'BƯỚC TIẾP THEO'}
               </span>
 
               <h2>
                 {completion === 100
-                  ? 'Hồ sơ đã đầy đủ. Tìm người đồng hành thôi!'
-                  : `Cậu đã hoàn thiện ${completion}% hồ sơ`}
+                  ? 'Tìm đúng người cho mục tiêu hôm nay.'
+                  : `Hoàn thiện ${completion}% hồ sơ để nhận gợi ý phù hợp hơn.`}
               </h2>
 
               <p>
                 {completion === 100
-                  ? 'Khám phá sinh viên theo mục tiêu và khu vực mong muốn.'
-                  : 'Bổ sung thông tin để hệ thống gợi ý những kết nối phù hợp hơn.'}
+                  ? 'Khám phá sinh viên theo mục tiêu, kỹ năng và khu vực của cậu.'
+                  : 'Thêm một vài thông tin cơ bản để CocoApp hiểu điều cậu đang tìm kiếm.'}
               </p>
 
               <Link
@@ -178,40 +173,41 @@ export default function Dashboard() {
                 className="banner-button"
               >
                 {completion === 100 ? 'Khám phá ngay' : 'Cập nhật hồ sơ'}
-                <span aria-hidden="true">↗</span>
+                <Icon name="arrow" />
               </Link>
-            </div>
-
-            <div className="banner-orbit" aria-hidden="true">
-              <span className="orbit-center">C</span>
-              <i className="orbit-dot dot-one" />
-              <i className="orbit-dot dot-two" />
-              <i className="orbit-dot dot-three" />
             </div>
           </div>
 
           <aside className="dashboard-metrics" aria-label="Tóm tắt tài khoản">
             <article className="metric-card metric-purple">
-              <span>Hồ sơ</span>
+              <span className="metric-label"><Icon name="profile" /> Hồ sơ</span>
               <strong>{completion}%</strong>
               <small>{completedFields}/{profileFields.length} thông tin</small>
             </article>
-            <article className="metric-card metric-orange">
-              <span>Đang chờ</span>
+            <Link
+              to="/matches"
+              className="metric-card metric-orange metric-link"
+              aria-label={`Mở kết nối, ${pending} lời mời đang chờ`}
+            >
+              <span className="metric-label"><Icon name="connection" /> Đang chờ</span>
               <strong>{pending}</strong>
-              <small>Lời mời kết nối</small>
-            </article>
-            <article className="metric-card metric-green">
-              <span>Đã kết nối</span>
+              <small>Lời mời kết nối <Icon name="arrow" /></small>
+            </Link>
+            <Link
+              to="/matches"
+              className="metric-card metric-green metric-link"
+              aria-label={`Mở kết nối, ${accepted} kết nối đã chấp nhận`}
+            >
+              <span className="metric-label"><Icon name="connection" /> Đã kết nối</span>
               <strong>{accepted}</strong>
-              <small>Có thể trò chuyện</small>
-            </article>
+              <small>Có thể trò chuyện <Icon name="arrow" /></small>
+            </Link>
           </aside>
         </div>
 
         <div className="section-heading">
-          <h2>Cậu đang cần gì?</h2>
-          <p>Chọn một mục tiêu để bắt đầu.</p>
+          <h2>Chọn mục tiêu của cậu</h2>
+          <p>Bắt đầu từ điều cậu muốn giải quyết hôm nay.</p>
         </div>
 
         <div className="quick-action-grid">
@@ -235,9 +231,7 @@ export default function Dashboard() {
           <section className="dashboard-panel">
             <div className="panel-title-row">
               <h2>Kết nối của cậu</h2>
-              <p>
-                {pending} lời mời đang chờ · {accepted} kết nối đã chấp nhận
-              </p>
+                <p>Theo dõi lời mời và những người cậu đã kết nối.</p>
             </div>
 
             {recentConnections.length === 0 ? (
@@ -273,14 +267,14 @@ export default function Dashboard() {
                   to="/matches"
                   className="panel-text-link"
                 >
-                  Xem tất cả kết nối <span>→</span>
+                  Xem tất cả kết nối <Icon name="arrow" />
                 </Link>
               </div>
             )}
           </section>
 
           <section className="dashboard-panel profile-progress">
-            <p className="progress-label">HỒ SƠ ĐÃ LƯU</p>
+            <p className="progress-label">MỨC ĐỘ HOÀN THIỆN</p>
 
             <div className="progress-number">
               <strong>{completion}%</strong>
@@ -303,7 +297,7 @@ export default function Dashboard() {
               Mức độ hoàn thiện không có nghĩa là tài khoản đã xác minh.
             </p>
 
-            <Link to="/profile">Chỉnh sửa hồ sơ →</Link>
+            <Link to="/profile">Chỉnh sửa hồ sơ <Icon name="arrow" /></Link>
           </section>
         </div>
       </section>

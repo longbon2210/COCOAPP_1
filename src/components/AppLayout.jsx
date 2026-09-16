@@ -23,6 +23,8 @@ export function Icon({ name }) {
     profile: <><circle cx="12" cy="8" r="3.2"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></>,
     bell: <><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
     logout: <><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/></>,
+    arrow: <><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></>,
+    spark: <><path d="m12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></>,
   }
 
   return (
@@ -104,7 +106,7 @@ export default function AppLayout({ children }) {
         </nav>
 
         <div className="sidebar-promo">
-          <span>✨ GỢI Ý</span>
+          <span><Icon name="spark" /> GỢI Ý</span>
           <strong>Hồ sơ tốt tạo kết nối tốt hơn</strong>
           <Link to="/profile">Hoàn thiện hồ sơ</Link>
         </div>
