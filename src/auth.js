@@ -1,57 +1,48 @@
-const ACCOUNTS_KEY = 'cocoapp.accounts.v2'
-const SESSION_KEY = 'cocoapp.session.v2'
+import { supabase } from './lib/supabaseClient'
 
-function readAccounts() {
-  const accounts = JSON.parse(
-    localStorage.getItem(ACCOUNTS_KEY) || '[]'
-  )
+let currentUser = null
 
-  const valid =
-    Array.isArray(accounts) &&
-    accounts.every(
-      (account) =>
-        account &&
-        ['id', 'email', 'salt', 'passwordHash'].every(
-          (key) => typeof account[key] === 'string'
-        )
-    )
+function getVietnameseAuthError(error) {
+  const message = error?.message?.toLowerCase() || ''
 
-  if (!valid) {
-    throw new Error('Dữ liệu tài khoản bị lỗi. Chưa thay đổi dữ liệu cũ.')
+  if (message.includes('invalid login credentials')) {
+    return new Error('Email hoặc mật khẩu chưa đúng.')
   }
 
-  return accounts
+  if (message.includes('user already registered')) {
+    return new Error('Email này đã đăng ký. Hãy chuyển sang đăng nhập.')
+  }
+
+  if (message.includes('email not confirmed')) {
+    return new Error('Email chưa được xác nhận. Hãy kiểm tra hộp thư của cậu.')
+  }
+
+  if (message.includes('password should be at least')) {
+    return new Error('Mật khẩu cần ít nhất 6 ký tự.')
+  }
+
+  return new Error('Đã xảy ra lỗi xác thực. Hãy thử lại sau.')
 }
 
-async function hashPassword(password, salt) {
-  if (!globalThis.crypto?.subtle) {
-    throw new Error('Hãy mở web bằng địa chỉ localhost hoặc HTTPS.')
+function createLocalProfile(userId, fullName, university) {
+  const profileKey = `cocoapp.user.${userId}.cocoapp.profile.v1`
+  const profile = {
+    fullName: fullName.trim(),
+    university: university.trim(),
+    major: '',
+    studyYear: '',
+    gender: '',
+    purpose: '',
+    bio: '',
+    city: '',
+    area: '',
+    publicLocation: '',
+    maxDistance: '3',
+    hidePhone: true,
+    hideExactAddress: true,
   }
 
-  const encoder = new TextEncoder()
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  )
-
-  const result = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: encoder.encode(salt),
-      iterations: 210000,
-      hash: 'SHA-256',
-    },
-    key,
-    256
-  )
-
-  return Array.from(new Uint8Array(result), (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('')
+  localStorage.setItem(profileKey, JSON.stringify(profile))
 }
 
 export async function registerAccount({
@@ -74,92 +65,71 @@ export async function registerAccount({
     throw new Error('Mật khẩu cần ít nhất 6 ký tự, không chỉ là dấu cách.')
   }
 
-  if (readAccounts().some((account) => account.email === normalizedEmail)) {
-    throw new Error('Email này đã đăng ký. Hãy chuyển sang đăng nhập.')
-  }
-
-  if (!globalThis.crypto?.subtle) {
-    throw new Error('Hãy mở web bằng địa chỉ localhost hoặc HTTPS.')
-  }
-
-  const id = crypto.randomUUID()
-  const salt = crypto.randomUUID()
-  const passwordHash = await hashPassword(password, salt)
-
-  const accounts = readAccounts()
-
-  if (accounts.some((account) => account.email === normalizedEmail)) {
-    throw new Error('Email này đã đăng ký.')
-  }
-
-  const profileKey = `cocoapp.user.${id}.cocoapp.profile.v1`
-
-  const profile = {
-    fullName: fullName.trim(),
-    university: university.trim(),
-    major: '',
-    studyYear: '',
-    gender: '',
-    purpose: '',
-    bio: '',
-    city: '',
-    area: '',
-    publicLocation: '',
-    maxDistance: '3',
-    hidePhone: true,
-    hideExactAddress: true,
-  }
-
-  localStorage.setItem(profileKey, JSON.stringify(profile))
-
-  localStorage.setItem(
-    ACCOUNTS_KEY,
-    JSON.stringify([
-      ...accounts,
-      {
-        id,
-        email: normalizedEmail,
-        salt,
-        passwordHash,
+  const { data, error } = await supabase.auth.signUp({
+    email: normalizedEmail,
+    password,
+    options: {
+      data: {
+        fullName: fullName.trim(),
+        university: university.trim(),
       },
-    ])
-  )
+    },
+  })
+
+  if (error) throw getVietnameseAuthError(error)
+
+  if (data.user) {
+    createLocalProfile(data.user.id, fullName, university)
+  }
+
+  currentUser = data.session?.user || null
+
+  return {
+    requiresEmailConfirmation: Boolean(data.user && !data.session),
+  }
 }
 
 export async function loginAccount(email, password) {
   const normalizedEmail = email.trim().toLowerCase()
 
-  const account = readAccounts().find(
-    (item) => item.email === normalizedEmail
-  )
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  })
 
-  if (!account) {
-    throw new Error('Email hoặc mật khẩu chưa đúng.')
-  }
+  if (error) throw getVietnameseAuthError(error)
 
-  const passwordHash = await hashPassword(password, account.salt)
-
-  if (passwordHash !== account.passwordHash) {
-    throw new Error('Email hoặc mật khẩu chưa đúng.')
-  }
-
-  sessionStorage.setItem(SESSION_KEY, account.id)
+  currentUser = data.user
 }
 
 export function currentAccount() {
-  try {
-    const accountId = sessionStorage.getItem(SESSION_KEY)
-
-    return (
-      readAccounts().find((account) => account.id === accountId) || null
-    )
-  } catch {
-    return null
-  }
+  return currentUser
 }
 
-export function logoutAccount() {
-  sessionStorage.removeItem(SESSION_KEY)
+export async function getCurrentAccount() {
+  const { data, error } = await supabase.auth.getSession()
+
+  if (error) throw getVietnameseAuthError(error)
+
+  currentUser = data.session?.user || null
+  return currentUser
+}
+
+export function subscribeToAuthState(callback) {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    currentUser = session?.user || null
+    callback(currentUser)
+  })
+
+  return () => data.subscription.unsubscribe()
+}
+
+export async function logoutAccount() {
+  const { error } = await supabase.auth.signOut()
+
+  if (error) throw getVietnameseAuthError(error)
+
+  currentUser = null
 }
 
 function getAccountKey(key) {

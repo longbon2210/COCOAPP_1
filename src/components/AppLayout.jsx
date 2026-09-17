@@ -73,11 +73,13 @@ export default function AppLayout({ children }) {
     mainRef.current?.focus({ preventScroll: true })
   }, [location.pathname])
 
-  function handleLogout(event) {
+  async function handleLogout(event) {
+    event.preventDefault()
+
     try {
-      logoutAccount()
+      await logoutAccount()
+      window.location.assign('/login')
     } catch {
-      event.preventDefault()
       setLogoutError('Không thể đăng xuất. Hãy tải lại trang và thử lại.')
     }
   }
@@ -124,9 +126,9 @@ export default function AppLayout({ children }) {
             <div><strong>{fullName}</strong><span>Xem hồ sơ</span></div>
           </NavLink>
 
-          <Link to="/login" replace className="logout-button" onClick={handleLogout} aria-label="Đăng xuất">
+          <a href="/login" className="logout-button" onClick={handleLogout} aria-label="Đăng xuất">
             <Icon name="logout"/><span>Đăng xuất</span>
-          </Link>
+          </a>
         </div>
       </aside>
 

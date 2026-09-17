@@ -72,7 +72,7 @@ export default function Register() {
     setIsLoading(true)
 
     try {
-      await registerAccount({
+      const result = await registerAccount({
         fullName: form.fullName,
         email: form.email,
         university: form.university,
@@ -81,12 +81,15 @@ export default function Register() {
 
       navigate('/login', {
         replace: true,
-        state: { registered: true },
+        state: {
+          registered: true,
+          requiresEmailConfirmation: result.requiresEmailConfirmation,
+        },
       })
     } catch (error) {
       setError(
         error.message ||
-          'Không tạo được tài khoản. Hãy kiểm tra quyền lưu trữ của trình duyệt.'
+          'Không tạo được tài khoản. Hãy thử lại sau.'
       )
     } finally {
       setIsLoading(false)
@@ -148,9 +151,8 @@ export default function Register() {
           </header>
 
           <p className="discover-demo-note" id="register-note">
-            Bản thử nghiệm: tài khoản chỉ được lưu trên trình duyệt
-            này, chưa đồng bộ sang máy khác hoặc xác minh email.
-            Hãy dùng thông tin thử nghiệm.
+            Tài khoản được bảo vệ bởi Supabase. Hồ sơ CocoApp vẫn
+            được lưu trên trình duyệt này trong giai đoạn thử nghiệm.
           </p>
 
           {error && (
@@ -232,8 +234,7 @@ export default function Register() {
                 aria-describedby={fieldErrors.understandDemo ? 'register-understand-demo-error' : undefined}
               />
               <span>
-                Tôi hiểu tài khoản và hồ sơ chỉ được lưu trên
-                trình duyệt này.
+                Tôi hiểu hồ sơ CocoApp chỉ được lưu trên trình duyệt này.
               </span>
             </label>
             {fieldErrors.understandDemo && <small id="register-understand-demo-error" className="auth-field-error auth-checkbox-error">{fieldErrors.understandDemo}</small>}

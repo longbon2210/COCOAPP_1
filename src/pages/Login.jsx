@@ -56,8 +56,7 @@ export default function Login() {
       navigate('/dashboard', { replace: true })
     } catch (error) {
       setError(
-        error.message ||
-          'Không đăng nhập được. Hãy kiểm tra quyền lưu trữ của trình duyệt.'
+        error.message || 'Không đăng nhập được. Hãy thử lại sau.'
       )
     } finally {
       setIsLoading(false)
@@ -127,12 +126,17 @@ export default function Login() {
               <p>Đăng nhập bằng tài khoản cậu đã đăng ký.</p>
             </div>
 
-            {location.state?.registered && (
+            {location.state?.requiresEmailConfirmation ? (
+              <div className="discover-demo-note" role="status">
+                Tài khoản đã được tạo. Hãy kiểm tra email để xác nhận
+                tài khoản trước khi đăng nhập.
+              </div>
+            ) : location.state?.registered ? (
               <div className="discover-demo-note" role="status">
                 Đăng ký thành công! Nhập email và mật khẩu vừa tạo
                 để đăng nhập.
               </div>
-            )}
+            ) : null}
 
             {error && (
               <div ref={errorRef} className="form-error-banner auth-error-summary" role="alert" tabIndex="-1">
