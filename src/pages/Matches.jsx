@@ -1,60 +1,116 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout, { Icon } from '../components/AppLayout'
-import { accountStorage } from '../auth'
+import { accountStorage, getCurrentAccount } from '../auth'
+import { supabase } from '../lib/supabaseClient'
 
-const CONNECTIONS_KEY = 'cocoapp.connections.v1'
+const MESSAGES_KEY_PREFIX = 'cocoapp.connection-messages.'
+const purposeLabels = {
+  study_group: 'Học nhóm',
+  team_project: 'Team Project',
+  roommates: 'Ghép trọ',
+}
 
-function readConnections() {
+function readMessages(id) {
   try {
-    const raw = accountStorage.getItem(CONNECTIONS_KEY)
+    const raw = accountStorage.getItem(`${MESSAGES_KEY_PREFIX}${id}`)
+    const messages = raw ? JSON.parse(raw) : []
 
-    if (!raw) return { items: [], error: '' }
-
-    const items = JSON.parse(raw)
-
-    if (
-      !Array.isArray(items) ||
-      !items.every(
-        (item) =>
-          item &&
-          typeof item.id === 'number' &&
-          typeof item.name === 'string' &&
-          ['pending', 'accepted'].includes(item.status) &&
-          Array.isArray(item.messages) &&
-          item.messages.every(
-            (message) =>
-              message &&
-              typeof message.id === 'string' &&
-              typeof message.text === 'string' &&
-              ['me', 'other'].includes(message.sender)
-          )
-      )
-    ) {
-      throw new Error('Invalid connections')
-    }
-
-    return { items, error: '' }
+    if (!Array.isArray(messages)) throw new Error('Invalid messages')
+    return messages
   } catch {
-    return {
-      items: [],
-      error: 'Không đọc được danh sách kết nối. Dữ liệu cũ chưa bị ghi đè.',
-    }
+    return []
   }
 }
 
+function writeMessages(id, messages) {
+  accountStorage.setItem(
+    `${MESSAGES_KEY_PREFIX}${id}`,
+    JSON.stringify(messages)
+  )
+}
+
+function mapRequest(request, userId) {
+  const isIncoming = request.recipient_id === userId
+  const otherProfile = isIncoming ? request.requester : request.recipient
+
+  return {
+    id: request.id,
+    name: otherProfile?.full_name?.trim() || 'Sinh viên CocoApp',
+    major: otherProfile?.major?.trim() || 'Chưa cập nhật ngành học',
+    purpose: purposeLabels[request.purpose] || 'Kết nối',
+    city: otherProfile?.city?.trim() || '',
+    area: otherProfile?.area?.trim() || '',
+    location: otherProfile?.public_location?.trim() || '',
+    about: otherProfile?.bio?.trim() || 'Chưa có giới thiệu.',
+    status: request.status,
+    isIncoming,
+    requesterId: request.requester_id,
+    recipientId: request.recipient_id,
+    messages: readMessages(request.id),
+  }
+}
+
+const profileFields = 'id, full_name, major, purpose, city, area, public_location, bio'
+const requestSelect = `id, requester_id, recipient_id, purpose, status, created_at, responded_at, requester:profiles!connection_requests_requester_id_fkey (${profileFields}), recipient:profiles!connection_requests_recipient_id_fkey (${profileFields})`
+
+function getMatchesErrorMessage(error) {
+  if (error?.message?.toLowerCase().includes('row-level security')) {
+    return 'Không thể tải hoặc cập nhật lời mời do quyền truy cập. Hãy đăng nhập lại.'
+  }
+
+  return 'Không thể tải danh sách kết nối. Hãy thử lại sau.'
+}
+
+async function fetchConnections() {
+  const user = await getCurrentAccount()
+  if (!user) throw new Error('Phiên đăng nhập đã hết.')
+
+  const { data, error } = await supabase
+    .from('connection_requests')
+    .select(requestSelect)
+    .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return (data || []).map((request) => mapRequest(request, user.id))
+}
+
 export default function Matches() {
-  const [initial] = useState(readConnections)
-  const [connections, setConnections] = useState(initial.items)
-  const [error, setError] = useState(initial.error)
+  const [connections, setConnections] = useState([])
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [actionId, setActionId] = useState(null)
   const [tab, setTab] = useState('pending')
   const [chatId, setChatId] = useState(null)
   const [draft, setDraft] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [confirmation, setConfirmation] = useState(null)
   const chatHeadingRef = useRef(null)
   const messageListRef = useRef(null)
   const lastChatTriggerRef = useRef(null)
   const shouldFocusChatRef = useRef(false)
+  const confirmationTriggerRef = useRef(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    fetchConnections()
+      .then((nextConnections) => {
+        if (isMounted) setConnections(nextConnections)
+      })
+      .catch((loadError) => {
+        if (isMounted) setError(getMatchesErrorMessage(loadError))
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const pendingCount = connections.filter(
     (item) => item.status === 'pending'
@@ -82,7 +138,7 @@ export default function Matches() {
       chatHeadingRef.current?.focus({ preventScroll: true })
       shouldFocusChatRef.current = false
     }
-  }, [chatId])
+  }, [chat, chatId])
 
   useEffect(() => {
     if (chatId !== null) {
@@ -91,48 +147,77 @@ export default function Matches() {
     }
   }, [chatId, chatMessageCount])
 
-  function saveConnections(next) {
-    if (initial.error) {
-      setError('Cần kiểm tra dữ liệu đã lưu trước khi thay đổi kết nối.')
-      return false
-    }
+  async function updateRequest(id, status) {
+    const request = connections.find((item) => item.id === id)
+    if (!request || !['pending', 'accepted'].includes(request.status) || actionId) return
+
+    setActionId(id)
+    setError('')
 
     try {
-      accountStorage.setItem(CONNECTIONS_KEY, JSON.stringify(next))
-      setConnections(next)
-      setError('')
-      setStatusMessage('Đã cập nhật kết nối.')
-      return true
-    } catch {
-      setError('Chưa lưu được thay đổi. Hãy thử lại.')
-      return false
-    }
-  }
+      const { error: updateError } = await supabase
+        .from('connection_requests')
+        .update({ status })
+        .eq('id', id)
 
-  function acceptRequest(id) {
-    const next = connections.map((item) =>
-      item.id === id && item.status === 'pending'
-        ? { ...item, status: 'accepted' }
-        : item
-    )
+      if (updateError) throw updateError
 
-    if (saveConnections(next)) {
-      setTab('accepted')
-      setStatusMessage('Lời mời đã được chấp nhận trong bản demo.')
+      const nextConnections = await fetchConnections()
+      setConnections(nextConnections)
+      setStatusMessage(
+        status === 'accepted'
+          ? 'Đã chấp nhận lời mời kết nối.'
+          : status === 'declined'
+            ? 'Đã từ chối lời mời kết nối.'
+            : 'Đã hủy lời mời kết nối.'
+      )
+      if (status === 'cancelled' && chatId === id) closeChat()
+      if (status === 'accepted') setTab('accepted')
+    } catch (updateError) {
+      setError(getMatchesErrorMessage(updateError))
+    } finally {
+      setActionId(null)
     }
   }
 
   function cancelRequest(id) {
     const connection = connections.find((item) => item.id === id)
-    if (!connection || !window.confirm(`Hủy lời mời gửi cho ${connection.name}?`)) {
-      return
-    }
+    if (!connection) return
 
-    const next = connections.filter(
-      (item) => !(item.id === id && item.status === 'pending')
-    )
+    confirmationTriggerRef.current = document.activeElement
+    setConfirmation({
+      id,
+      title: 'Hủy lời mời kết nối?',
+      message: `Lời mời gửi cho ${connection.name} sẽ được hủy.`,
+      actionLabel: 'Hủy lời mời',
+    })
+  }
 
-    if (saveConnections(next)) setStatusMessage('Đã hủy lời mời kết nối.')
+  function disconnectConnection(id) {
+    const connection = connections.find((item) => item.id === id)
+    if (!connection) return
+
+    confirmationTriggerRef.current = document.activeElement
+    setConfirmation({
+      id,
+      title: 'Ngắt kết nối?',
+      message: `Cậu và ${connection.name} sẽ không còn ở trạng thái kết nối. Lịch sử tin nhắn vẫn được giữ lại.`,
+      actionLabel: 'Ngắt kết nối',
+    })
+  }
+
+  function closeConfirmation() {
+    setConfirmation(null)
+    confirmationTriggerRef.current?.focus({ preventScroll: true })
+  }
+
+  async function confirmConnectionAction() {
+    if (!confirmation) return
+
+    const { id } = confirmation
+    setConfirmation(null)
+    await updateRequest(id, 'cancelled')
+    confirmationTriggerRef.current?.focus({ preventScroll: true })
   }
 
   function openChat(id) {
@@ -163,33 +248,16 @@ export default function Matches() {
       text,
     }
 
-    const next = connections.map((item) =>
-      item.id === chat.id
-        ? { ...item, messages: [...item.messages, message] }
-        : item
-    )
-
-    if (saveConnections(next)) {
+    try {
+      const messages = [...chat.messages, message]
+      writeMessages(chat.id, messages)
+      setConnections((current) => current.map((item) =>
+        item.id === chat.id ? { ...item, messages } : item
+      ))
       setDraft('')
+    } catch {
+      setError('Chưa lưu được tin nhắn. Hãy thử lại.')
     }
-  }
-
-  function simulateReply() {
-    if (!chat) return
-
-    const message = {
-      id: crypto.randomUUID(),
-      sender: 'other',
-      text: 'Chào cậu! Mình đã nhận được lời nhắn. Cùng trao đổi thêm nhé.',
-    }
-
-    const next = connections.map((item) =>
-      item.id === chat.id
-        ? { ...item, messages: [...item.messages, message] }
-        : item
-    )
-
-    saveConnections(next)
   }
 
   return (
@@ -208,9 +276,8 @@ export default function Matches() {
         </header>
 
         <p className="discover-demo-note">
-          Bản demo trên trình duyệt này. Nút mô phỏng dùng để
-          trình diễn người kia chấp nhận hoặc trả lời;
-          không gửi thông báo đến người thật.
+          Lời mời được lưu trên Supabase. Tin nhắn vẫn được lưu
+          riêng trên trình duyệt trong giai đoạn này.
         </p>
 
         <div className="matches-summary">
@@ -233,6 +300,49 @@ export default function Matches() {
         {statusMessage && (
           <div className="matches-status-message" role="status" aria-live="polite">
             <Icon name="connection" /> {statusMessage}
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="form-error-banner" role="status" aria-live="polite">
+            Đang tải lời mời kết nối…
+          </div>
+        )}
+
+        {confirmation && (
+          <div className="discover-dialog-backdrop" role="presentation">
+            <section
+              className="discover-profile-dialog connection-confirmation-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="connection-confirmation-title"
+              aria-describedby="connection-confirmation-message"
+            >
+              <div className="discover-dialog-body">
+                <div className="discover-dialog-section">
+                  <h2 id="connection-confirmation-title">{confirmation.title}</h2>
+                  <p id="connection-confirmation-message">{confirmation.message}</p>
+                </div>
+              </div>
+              <footer className="discover-dialog-actions">
+                <button
+                  type="button"
+                  className="view-student-button"
+                  onClick={closeConfirmation}
+                >
+                  Quay lại
+                </button>
+                <button
+                  type="button"
+                  className="connect-student-button"
+                  autoFocus
+                  disabled={actionId === confirmation.id}
+                  onClick={confirmConnectionAction}
+                >
+                  {actionId === confirmation.id ? 'Đang cập nhật…' : confirmation.actionLabel}
+                </button>
+              </footer>
+            </section>
           </div>
         )}
 
@@ -268,7 +378,7 @@ export default function Matches() {
           </button>
         </div>
 
-        {visibleConnections.length === 0 ? (
+        {!isLoading && visibleConnections.length === 0 ? (
           <div id="matches-panel" role="tabpanel" aria-labelledby={`${tab}-tab`} className="discover-empty-state">
             <h2>
               {tab === 'pending'
@@ -344,6 +454,13 @@ export default function Matches() {
                   >
                     Đóng trò chuyện
                   </button>
+                  <button
+                    type="button"
+                    className="view-student-button"
+                    onClick={() => disconnectConnection(chat.id)}
+                  >
+                    Ngắt kết nối
+                  </button>
                 </header>
 
                 <div
@@ -363,7 +480,7 @@ export default function Matches() {
                       className={`chat-message ${message.sender === 'me' ? 'from-me' : 'from-other'}`}
                     >
                       <strong>
-                        {message.sender === 'me' ? 'Cậu' : `${chat.name} (mô phỏng)`}
+                        {message.sender === 'me' ? 'Cậu' : chat.name}
                       </strong>
                       <div>{message.text}</div>
                     </div>
@@ -391,13 +508,6 @@ export default function Matches() {
                       Gửi tin nhắn
                     </button>
 
-                    <button
-                      type="button"
-                      className="view-student-button"
-                      onClick={simulateReply}
-                    >
-                      Mô phỏng phản hồi
-                    </button>
                   </div>
                 </form>
               </section>
@@ -432,37 +542,62 @@ export default function Matches() {
 
                 <p className="student-about">
                   {item.status === 'pending'
-                    ? 'Đã gửi lời mời. Chưa thể trò chuyện.'
-                    : 'Lời mời đã được chấp nhận trong bản demo.'}
+                    ? item.isIncoming
+                      ? 'Lời mời đang chờ cậu phản hồi.'
+                      : 'Đã gửi lời mời. Chưa thể trò chuyện.'
+                    : 'Đã kết nối. Có thể bắt đầu trò chuyện.'}
                 </p>
 
                 <div className="student-card-actions">
                   {item.status === 'pending' ? (
                     <>
-                      <button
-                        type="button"
-                        className="view-student-button"
-                        onClick={() => cancelRequest(item.id)}
-                      >
-                        Hủy lời mời
-                      </button>
-
+                      {item.isIncoming ? (
+                        <>
+                          <button
+                            type="button"
+                            className="view-student-button"
+                            disabled={actionId === item.id}
+                            onClick={() => updateRequest(item.id, 'declined')}
+                          >
+                            Từ chối
+                          </button>
+                          <button
+                            type="button"
+                            className="connect-student-button"
+                            disabled={actionId === item.id}
+                            onClick={() => updateRequest(item.id, 'accepted')}
+                          >
+                            {actionId === item.id ? 'Đang cập nhật…' : 'Chấp nhận'}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="view-student-button"
+                          disabled={actionId === item.id}
+                          onClick={() => cancelRequest(item.id)}
+                        >
+                          {actionId === item.id ? 'Đang hủy…' : 'Hủy lời mời'}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
                       <button
                         type="button"
                         className="connect-student-button"
-                        onClick={() => acceptRequest(item.id)}
+                        onClick={() => openChat(item.id)}
                       >
-                        Chấp nhận (mô phỏng)
+                        Mở trò chuyện
+                      </button>
+                      <button
+                        type="button"
+                        className="view-student-button"
+                        onClick={() => disconnectConnection(item.id)}
+                      >
+                        Ngắt kết nối
                       </button>
                     </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="connect-student-button"
-                      onClick={() => openChat(item.id)}
-                    >
-                      Mở trò chuyện
-                    </button>
                   )}
                 </div>
               </article>

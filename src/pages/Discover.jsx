@@ -1,43 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout, { Icon } from '../components/AppLayout'
-import { accountStorage, getCurrentAccount } from '../auth'
+import { getCurrentAccount } from '../auth'
 import { supabase } from '../lib/supabaseClient'
 import { VIETNAM_LOCATIONS } from '../data/vietnamLocations'
 
-const CONNECTIONS_KEY = 'cocoapp.connections.v1'
-
-function readConnections() {
-  const raw = accountStorage.getItem(CONNECTIONS_KEY)
-  if (!raw) return []
-
-  const items = JSON.parse(raw)
-
-  if (
-    !Array.isArray(items) ||
-    !items.every(
-      (item) =>
-        item &&
-        typeof item.id === 'number' &&
-        typeof item.name === 'string' &&
-        ['pending', 'accepted'].includes(item.status) &&
-        Array.isArray(item.messages) &&
-        item.messages.every(
-          (message) =>
-            message &&
-            typeof message.id === 'string' &&
-            typeof message.text === 'string' &&
-            ['me', 'other'].includes(message.sender)
-        )
-    )
-  ) {
-    throw new Error('Dữ liệu kết nối không hợp lệ')
-  }
-
-  return items
-}
-
 const purposes = ['Tất cả', 'Học nhóm', 'Team Project', 'Ghép trọ']
+const purposeValues = {
+  'Học nhóm': 'study_group',
+  'Team Project': 'team_project',
+  'Ghép trọ': 'roommates',
+}
 
 function normalize(value) {
   return String(value ?? '')
@@ -115,6 +88,24 @@ function getDiscoverErrorMessage(error) {
   return 'Không thể tải hồ sơ từ Supabase. Hãy thử lại sau.'
 }
 
+function requestKey(profileId) {
+  return profileId
+}
+
+function getRequestErrorMessage(error) {
+  const message = error?.message?.toLowerCase() || ''
+
+  if (message.includes('roommate requests require matching genders')) {
+    return 'Không thể gửi lời mời ghép trọ vì hai hồ sơ chưa cùng giới tính.'
+  }
+
+  if (error?.code === '23505') {
+    return 'Đã có lời mời đang chờ hoặc kết nối giữa hai tài khoản.'
+  }
+
+  return 'Chưa gửi được lời mời. Hãy thử lại sau.'
+}
+
 export default function Discover({ initialPurpose = 'Tất cả' }) {
   const [profile, setProfile] = useState({
     gender: '',
@@ -135,13 +126,8 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [undoStudent, setUndoStudent] = useState(null)
   const [requestError, setRequestError] = useState('')
-  const [sentIds, setSentIds] = useState(() => {
-  try {
-    return readConnections().map((item) => item.id)
-  } catch {
-    return []
-  }
-})
+  const [requestStatuses, setRequestStatuses] = useState({})
+  const [sendingIds, setSendingIds] = useState({})
   const [hiddenIds, setHiddenIds] = useState([])
   const dialogRef = useRef(null)
   const lastProfileTriggerRef = useRef(null)
@@ -155,7 +141,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
 
         if (!user) throw new Error('Phiên đăng nhập đã hết.')
 
-        const [ownResult, othersResult] = await Promise.all([
+        const [ownResult, othersResult, requestResult] = await Promise.all([
           supabase
             .from('profiles')
             .select('gender, city, area, max_distance_km')
@@ -165,10 +151,15 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
             .from('profiles')
             .select('id, full_name, gender, major, purpose, city, area, public_location, bio')
             .neq('id', user.id),
+          supabase
+            .from('connection_requests')
+            .select('recipient_id, requester_id, purpose, status')
+            .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
         ])
 
         if (ownResult.error) throw ownResult.error
         if (othersResult.error) throw othersResult.error
+        if (requestResult.error) throw requestResult.error
 
         const preferences = mapProfilePreferences(ownResult.data)
 
@@ -178,6 +169,16 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
           setArea(preferences.area)
           setMaxDistance(preferences.maxDistance)
           setStudents((othersResult.data || []).map(mapProfileToStudent))
+          setRequestStatuses(Object.fromEntries(
+            (requestResult.data || [])
+              .filter((item) => item.status === 'pending' || item.status === 'accepted')
+              .map((item) => [
+                requestKey(
+                  item.requester_id === user.id ? item.recipient_id : item.requester_id
+                ),
+                item.status,
+              ])
+          ))
           setLoadError('')
         }
       } catch (error) {
@@ -278,44 +279,44 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
     closeProfile(false)
   }
 
-  function sendRequest(id) {
-  const student = filteredStudents.find((item) => item.id === id)
-  if (!student) return
+  async function sendRequest(id) {
+    const student = filteredStudents.find((item) => item.id === id)
+    if (!student || !purposeValues[student.purpose]) return
 
-  try {
-    // Đọc dữ liệu mới nhất để giữ các kết nối và tin nhắn đã có.
-    const connections = readConnections()
+    const key = requestKey(student.profileId)
+    const status = requestStatuses[key]
 
-    if (connections.some((item) => item.id === id)) {
-      setSentIds(connections.map((item) => item.id))
-      return
-    }
+    if (status === 'pending' || status === 'accepted' || sendingIds[key]) return
 
-    const newConnection = {
-      id: student.id,
-      name: student.name,
-      major: student.major,
-      purpose: student.purpose,
-      city: student.city,
-      area: student.area,
-      location: student.location,
-      status: 'pending',
-      messages: [],
-    }
-
-    const updated = [...connections, newConnection]
-
-    accountStorage.setItem(
-      CONNECTIONS_KEY,
-      JSON.stringify(updated)
-    )
-
-    setSentIds(updated.map((item) => item.id))
+    setSendingIds((current) => ({ ...current, [key]: true }))
     setRequestError('')
-  } catch {
-    setRequestError('Chưa gửi được lời mời vì không đọc hoặc lưu được dữ liệu. Dữ liệu cũ chưa bị ghi đè.')
+
+    try {
+      const user = await getCurrentAccount()
+      if (!user) throw new Error('Phiên đăng nhập đã hết.')
+
+      const { error } = await supabase
+        .from('connection_requests')
+        .insert({
+          requester_id: user.id,
+          recipient_id: student.profileId,
+          purpose: purposeValues[student.purpose],
+          status: 'pending',
+        })
+
+      if (error) throw error
+
+      setRequestStatuses((current) => ({ ...current, [key]: 'pending' }))
+    } catch (error) {
+      setRequestError(getRequestErrorMessage(error))
+    } finally {
+      setSendingIds((current) => {
+        const next = { ...current }
+        delete next[key]
+        return next
+      })
+    }
   }
-}
 
   function resetFilters() {
     setSearch('')
@@ -346,7 +347,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
         <p className="discover-demo-note">
           Hồ sơ sinh viên được tải từ Supabase.
           Khoảng cách sẽ được bổ sung khi có dữ liệu vị trí phù hợp.
-          Lời mời vẫn mô phỏng trong trang hiện tại.
+          Lời mời được lưu trên Supabase.
         </p>
 
         <div className="discover-trust-bar">
@@ -508,7 +509,12 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
 
             <div className="student-card-grid">
               {filteredStudents.map((student) => {
-                const sent = sentIds.includes(student.id)
+                const studentRequestKey = requestKey(
+                  student.profileId
+                )
+                const requestStatus = requestStatuses[studentRequestKey]
+                const requestPending = requestStatus === 'pending'
+                const requestAccepted = requestStatus === 'accepted'
                 const purposeClass = student.purpose === 'Học nhóm'
                   ? 'purpose-study-card'
                   : student.purpose === 'Team Project'
@@ -561,10 +567,16 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
                       <button
                         type="button"
                         className="connect-student-button"
-                        disabled={sent}
+                        disabled={requestPending || requestAccepted || sendingIds[studentRequestKey]}
                         onClick={() => sendRequest(student.id)}
                       >
-                        {sent ? 'Đã gửi lời mời' : 'Kết nối'}
+                        {requestAccepted
+                          ? 'Đã kết nối'
+                          : requestPending
+                            ? 'Đã gửi lời mời'
+                            : sendingIds[studentRequestKey]
+                              ? 'Đang gửi…'
+                              : 'Kết nối'}
                       </button>
                     </div>
                   </article>
@@ -655,10 +667,32 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
                 <button
                   type="button"
                   className="connect-student-button"
-                  disabled={sentIds.includes(selectedStudent.id)}
+                  disabled={
+                    requestStatuses[requestKey(
+                      selectedStudent.profileId
+                    )] === 'pending' ||
+                    requestStatuses[requestKey(
+                      selectedStudent.profileId
+                    )] === 'accepted' ||
+                    sendingIds[requestKey(
+                      selectedStudent.profileId
+                    )]
+                  }
                   onClick={() => sendRequest(selectedStudent.id)}
                 >
-                  {sentIds.includes(selectedStudent.id) ? 'Đã gửi lời mời' : 'Gửi lời mời'}
+                  {requestStatuses[requestKey(
+                    selectedStudent.profileId
+                  )] === 'accepted'
+                    ? 'Đã kết nối'
+                    : requestStatuses[requestKey(
+                      selectedStudent.profileId
+                    )] === 'pending'
+                      ? 'Đã gửi lời mời'
+                      : sendingIds[requestKey(
+                        selectedStudent.profileId
+                      )]
+                        ? 'Đang gửi…'
+                        : 'Gửi lời mời'}
                 </button>
               </footer>
             </section>
