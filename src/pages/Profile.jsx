@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AppLayout, { Icon } from '../components/AppLayout'
-import { accountStorage } from '../auth'
+import { getCurrentAccount, accountStorage } from '../auth'
+import { supabase } from '../lib/supabaseClient'
 
 const STORAGE_KEY = 'cocoapp.profile.v1'
 
@@ -89,6 +90,48 @@ function readProfile() {
   }
 }
 
+function profileFromSupabase(profile) {
+  if (!profile) return { ...defaultProfile }
+
+  return {
+    fullName: profile.full_name || '',
+    university: profile.university || '',
+    major: profile.major || '',
+    studyYear: profile.study_year || '',
+    gender: profile.gender || '',
+    purpose: profile.purpose || '',
+    bio: (profile.bio || '').slice(0, 180),
+    city: profile.city || '',
+    area: profile.area || '',
+    publicLocation: profile.public_location || '',
+    maxDistance: String(profile.max_distance_km || 3),
+  }
+}
+
+function isNearlyEmptyProfile(profile) {
+  return [
+    'university',
+    'major',
+    'studyYear',
+    'gender',
+    'purpose',
+    'bio',
+    'city',
+    'area',
+    'publicLocation',
+  ].every((field) => !profile[field])
+}
+
+function getProfileErrorMessage(error, action) {
+  const message = error?.message?.toLowerCase() || ''
+
+  if (message.includes('row-level security')) {
+    return `Không thể ${action} hồ sơ do quyền truy cập. Hãy đăng nhập lại và thử lại.`
+  }
+
+  return `Không thể ${action} hồ sơ. Hãy thử lại sau.`
+}
+
 export default function Profile() {
   const [initial] = useState(readProfile)
   const [formData, setFormData] = useState(initial.data)
@@ -96,9 +139,20 @@ export default function Profile() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(initial.warning)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [privateProfile, setPrivateProfile] = useState({
+    phone: null,
+    exact_address: null,
+    hide_phone: true,
+    hide_exact_address: true,
+  })
+  const [phone, setPhone] = useState('')
+  const [savedPhone, setSavedPhone] = useState('')
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
   const statusRef = useRef(null)
 
-  const isDirty = JSON.stringify(formData) !== JSON.stringify(savedProfile)
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(savedProfile) ||
+    phone !== savedPhone
 
   const completedFields = Object.values(formData).filter(
     (value) => value.trim() !== ''
@@ -110,6 +164,69 @@ export default function Profile() {
 
   const lastName = formData.fullName.trim().split(/\s+/).pop()
   const avatarLetter = lastName ? lastName[0].toUpperCase() : '?'
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadProfile() {
+      try {
+        const user = await getCurrentAccount()
+
+        if (!user) {
+          throw new Error('Phiên đăng nhập đã hết.')
+        }
+
+        const [{ data: publicProfile, error: publicError }, { data: privateData, error: privateError }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, full_name, university, major, study_year, gender, purpose, bio, city, area, public_location, max_distance_km')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('profile_private')
+            .select('phone, exact_address, hide_phone, hide_exact_address')
+            .eq('profile_id', user.id)
+            .maybeSingle(),
+        ])
+
+        if (publicError) throw publicError
+        if (privateError) throw privateError
+
+        const supabaseProfile = profileFromSupabase(publicProfile)
+        const legacyProfile = initial.data
+        const shouldUseLegacy = isNearlyEmptyProfile(supabaseProfile) &&
+          JSON.stringify(legacyProfile) !== JSON.stringify(defaultProfile)
+        const loadedProfile = shouldUseLegacy ? legacyProfile : supabaseProfile
+
+        if (isMounted) {
+          setFormData(loadedProfile)
+          setSavedProfile(shouldUseLegacy ? supabaseProfile : loadedProfile)
+          setPrivateProfile(privateData || {
+            phone: null,
+            exact_address: null,
+            hide_phone: true,
+            hide_exact_address: true,
+          })
+          setPhone(privateData?.phone || '')
+          setSavedPhone(privateData?.phone || '')
+          setSaved(false)
+          setError('')
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(getProfileErrorMessage(loadError, 'tải'))
+        }
+      } finally {
+        if (isMounted) setIsLoadingProfile(false)
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      isMounted = false
+    }
+  }, [initial.data])
 
   useEffect(() => {
     function handleBeforeUnload(event) {
@@ -144,10 +261,14 @@ export default function Profile() {
   function handleChange(event) {
     const { name, value } = event.target
 
-    setFormData((current) => ({
-      ...current,
-      [name]: value,
-    }))
+    if (name === 'phone') {
+      setPhone(value)
+    } else {
+      setFormData((current) => ({
+        ...current,
+        [name]: value,
+      }))
+    }
 
     setSaved(false)
     setError('')
@@ -163,6 +284,26 @@ export default function Profile() {
   function handleBlur(event) {
     const { name, value } = event.target
 
+    if (name === 'phone') {
+      const normalizedPhone = value.replace(/[ .-]/g, '')
+      const isValidPhone = !value.trim() ||
+        /^0\d{9}$/.test(normalizedPhone) ||
+        /^\+84\d{9}$/.test(normalizedPhone)
+
+      setFieldErrors((current) => {
+        const next = { ...current }
+
+        if (isValidPhone) {
+          delete next.phone
+        } else {
+          next.phone = 'Số điện thoại cần có dạng 0xxxxxxxxx hoặc +84xxxxxxxxx.'
+        }
+
+        return next
+      })
+      return
+    }
+
     if (requiredFields.includes(name) && !value.trim()) {
       setFieldErrors((current) => ({
         ...current,
@@ -171,8 +312,9 @@ export default function Profile() {
     }
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    if (isSaving || isLoadingProfile) return
     setSaved(false)
 
     const cleaned = Object.fromEntries(
@@ -182,33 +324,84 @@ export default function Profile() {
       ])
     )
 
+    const cleanedPhone = phone.trim()
     const nextErrors = validateForm(cleaned)
+    const normalizedPhone = cleanedPhone.replace(/[ .-]/g, '')
+    const isValidPhone = !phone.trim() ||
+      /^0\d{9}$/.test(normalizedPhone) ||
+      /^\+84\d{9}$/.test(normalizedPhone)
+
+    if (!isValidPhone) {
+      nextErrors.phone = 'Số điện thoại cần có dạng 0xxxxxxxxx hoặc +84xxxxxxxxx.'
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
-      setError('Hãy bổ sung các thông tin bắt buộc được đánh dấu bên dưới.')
+      setError(
+        Object.keys(nextErrors).every((field) => field === 'phone')
+          ? ''
+          : 'Hãy bổ sung các thông tin bắt buộc được đánh dấu bên dưới.'
+      )
       return
     }
 
-    try {
-      accountStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          ...cleaned,
-          hidePhone: true,
-          hideExactAddress: true,
-        })
-      )
+    setIsSaving(true)
 
-      setFormData(cleaned)
-      setSavedProfile(cleaned)
+    try {
+      const user = await getCurrentAccount()
+
+      if (!user) {
+        throw new Error('Phiên đăng nhập đã hết.')
+      }
+
+      const { data: savedPublicProfile, error: publicError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: cleaned.fullName,
+          university: cleaned.university,
+          major: cleaned.major,
+          study_year: cleaned.studyYear,
+          gender: cleaned.gender,
+          purpose: cleaned.purpose,
+          bio: cleaned.bio,
+          city: cleaned.city,
+          area: cleaned.area,
+          public_location: cleaned.publicLocation,
+          max_distance_km: Number(cleaned.maxDistance),
+        })
+        .select('id, full_name, university, major, study_year, gender, purpose, bio, city, area, public_location, max_distance_km')
+        .single()
+
+      if (publicError) throw publicError
+
+      const { data: savedPrivateProfile, error: privateError } = await supabase
+        .from('profile_private')
+        .upsert({
+          profile_id: user.id,
+          phone: cleanedPhone || null,
+          exact_address: privateProfile.exact_address,
+          hide_phone: privateProfile.hide_phone,
+          hide_exact_address: privateProfile.hide_exact_address,
+        })
+        .select('phone, exact_address, hide_phone, hide_exact_address')
+        .single()
+
+      if (privateError) throw privateError
+
+      const savedData = profileFromSupabase(savedPublicProfile)
+      setFormData(savedData)
+      setSavedProfile(savedData)
+      setPrivateProfile(savedPrivateProfile || privateProfile)
+      setPhone(savedPrivateProfile?.phone || cleanedPhone)
+      setSavedPhone(savedPrivateProfile?.phone || cleanedPhone)
       setFieldErrors({})
       setError('')
       setSaved(true)
-    } catch {
-      setError(
-        'Chưa lưu được. Trình duyệt có thể đang chặn lưu trữ hoặc đã đầy. Thông tin đang nhập vẫn được giữ trên màn hình.'
-      )
+    } catch (saveError) {
+      setError(getProfileErrorMessage(saveError, 'lưu'))
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -265,8 +458,9 @@ export default function Profile() {
               type="submit"
               form="profile-form"
               className="profile-save-button"
+              disabled={isLoadingProfile || isSaving}
             >
-              {saved ? 'Đã lưu thay đổi' : 'Lưu hồ sơ'}
+              {isSaving ? 'Đang lưu hồ sơ…' : saved ? 'Đã lưu thay đổi' : 'Lưu hồ sơ'}
               <Icon name="arrow" />
             </button>
           </div>
@@ -285,16 +479,21 @@ export default function Profile() {
           <div><span>Quyền riêng tư</span><strong>Đang bảo vệ</strong></div>
         </div>
 
+        {isLoadingProfile && (
+          <div className="profile-loading-message" role="status" aria-live="polite">
+            Đang tải hồ sơ…
+          </div>
+        )}
+
         {error && (
-          <div ref={statusRef} className="form-error-banner" role="alert" tabIndex="-1">
+          <div ref={statusRef} className="form-error-banner" role="alert" aria-live="assertive" tabIndex="-1">
             {error}
           </div>
         )}
 
         {saved && (
           <div className="profile-success-message" role="status" aria-live="polite">
-            Đã lưu trên trình duyệt này. Cậu có thể tải lại trang
-            để kiểm tra.
+            Đã lưu hồ sơ vào Supabase. Cậu có thể tải lại trang để kiểm tra.
           </div>
         )}
 
@@ -360,6 +559,7 @@ export default function Profile() {
             id="profile-form"
             className="profile-form-card"
             onSubmit={handleSubmit}
+            aria-busy={isLoadingProfile || isSaving}
             noValidate
           >
             <div className="profile-form-section">
@@ -471,7 +671,7 @@ export default function Profile() {
                 <span>03</span>
                 <div>
                   <h2>Khu vực và quyền riêng tư</h2>
-                  <p>Không nhập số điện thoại hoặc địa chỉ nhà cụ thể.</p>
+                  <p>Số điện thoại và địa chỉ chính xác được bảo vệ riêng tư.</p>
                 </div>
               </div>
 
@@ -521,6 +721,25 @@ export default function Profile() {
                   />
                 </label>
 
+                <label className="profile-field">
+                  {fieldLabel('phone', 'Số điện thoại', true)}
+                  <input
+                    id="profile-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
+                    placeholder="Ví dụ: 0912 345 678"
+                    maxLength={20}
+                  />
+                  {fieldErrors.phone && <small id="phone-error" className="profile-field-error">{fieldErrors.phone}</small>}
+                </label>
+
                 {renderSelect('maxDistance', 'Khoảng cách mong muốn')}
               </div>
 
@@ -529,7 +748,7 @@ export default function Profile() {
                   <div>
                       <strong><Icon name="profile" /> Không công khai số điện thoại</strong>
                     <span>
-                      Bản demo không thu thập hay lưu số điện thoại.
+                        Số điện thoại được lưu riêng tư và chỉ cậu có thể xem hoặc chỉnh sửa.
                     </span>
                   </div>
                   <span>Luôn bật</span>
