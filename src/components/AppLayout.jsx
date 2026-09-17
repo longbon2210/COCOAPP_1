@@ -1,6 +1,33 @@
-import { NavLink, Link, useLocation } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
-import { accountStorage, logoutAccount } from '../auth'
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { accountStorage, getCurrentAccount, logoutAccount } from '../auth'
+import { supabase } from '../lib/supabaseClient'
+
+const notificationSelect = 'id, recipient_id, actor_id, connection_request_id, type, read_at, created_at, actor:profiles!notifications_actor_id_fkey(full_name)'
+
+const notificationCopy = {
+  request_received: 'đã gửi cho cậu một lời mời kết nối.',
+  request_accepted: 'đã chấp nhận lời mời kết nối của cậu.',
+  request_declined: 'đã từ chối lời mời kết nối của cậu.',
+  request_cancelled: 'đã hủy lời mời kết nối đã gửi cho cậu.',
+  connection_disconnected: 'đã ngắt kết nối với cậu.',
+}
+
+function getNotificationMessage(notification) {
+  const actorName = notification.actor?.full_name?.trim() || 'Một sinh viên'
+  return `${actorName} ${notificationCopy[notification.type] || 'đã cập nhật kết nối với cậu.'}`
+}
+
+function formatNotificationTime(value) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date)
+}
 
 function getProfileName() {
   try {
@@ -63,21 +90,223 @@ const pageTitles = {
 
 export default function AppLayout({ children }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const mainRef = useRef(null)
+  const notificationRootRef = useRef(null)
+  const notificationButtonRef = useRef(null)
+  const notificationPanelRef = useRef(null)
+  const notificationChannelRef = useRef(null)
+  const notificationUserIdRef = useRef(null)
+  const notificationsMountedRef = useRef(false)
   const [logoutError, setLogoutError] = useState('')
+  const [notifications, setNotifications] = useState([])
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
+  const [notificationsError, setNotificationsError] = useState('')
+  const [notificationAnnouncement, setNotificationAnnouncement] = useState('')
   const fullName = getProfileName()
   const avatarLetter = fullName.split(/\s+/).pop()[0].toUpperCase()
   const pageTitle = pageTitles[location.pathname] || 'CocoApp'
+  const unreadNotificationCount = notifications.filter(
+    (notification) => notification.read_at === null
+  ).length
+
+  const loadNotifications = useCallback(async ({ silent = false } = {}) => {
+    const userId = notificationUserIdRef.current
+    if (!userId) return
+
+    if (!silent && notificationsMountedRef.current) {
+      setNotificationsLoading(true)
+    }
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select(notificationSelect)
+      .eq('recipient_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    if (!notificationsMountedRef.current) return
+
+    if (error) {
+      setNotificationsError('Chưa tải được thông báo. Hãy thử mở lại chuông.')
+    } else {
+      setNotifications(data || [])
+      setNotificationsError('')
+    }
+
+    setNotificationsLoading(false)
+  }, [])
 
   useEffect(() => {
     mainRef.current?.focus({ preventScroll: true })
   }, [location.pathname])
+
+  useEffect(() => {
+    let cancelled = false
+    notificationsMountedRef.current = true
+
+    async function setupNotifications() {
+      try {
+        const user = await getCurrentAccount()
+        if (!user || cancelled) return
+
+        notificationUserIdRef.current = user.id
+        await loadNotifications()
+        if (cancelled) return
+
+        const channel = supabase
+          .channel(`notifications:${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `recipient_id=eq.${user.id}`,
+            },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                const incoming = { ...payload.new, actor: null }
+                setNotifications((current) => (
+                  current.some((item) => item.id === incoming.id)
+                    ? current
+                    : [incoming, ...current].slice(0, 30)
+                ))
+                setNotificationAnnouncement(getNotificationMessage(incoming))
+              } else if (payload.eventType === 'UPDATE') {
+                setNotifications((current) => current.map((item) => (
+                  item.id === payload.new.id
+                    ? { ...item, read_at: payload.new.read_at }
+                    : item
+                )))
+              }
+
+              void loadNotifications({ silent: true })
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR' && notificationsMountedRef.current) {
+              setNotificationsError('Kết nối thông báo trực tiếp đang gián đoạn. Dữ liệu sẽ tải lại khi cậu mở chuông.')
+            }
+          })
+
+        notificationChannelRef.current = channel
+      } catch {
+        if (notificationsMountedRef.current) {
+          setNotificationsLoading(false)
+          setNotificationsError('Chưa tải được thông báo. Hãy thử mở lại chuông.')
+        }
+      }
+    }
+
+    function handleWindowFocus() {
+      void loadNotifications({ silent: true })
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    void setupNotifications()
+
+    return () => {
+      cancelled = true
+      notificationsMountedRef.current = false
+      notificationUserIdRef.current = null
+      window.removeEventListener('focus', handleWindowFocus)
+
+      if (notificationChannelRef.current) {
+        void supabase.removeChannel(notificationChannelRef.current)
+        notificationChannelRef.current = null
+      }
+    }
+  }, [loadNotifications])
+
+  useEffect(() => {
+    if (!notificationsOpen) return undefined
+
+    void loadNotifications({ silent: true })
+    window.requestAnimationFrame(() => {
+      notificationPanelRef.current?.querySelector('button:not(:disabled)')?.focus({ preventScroll: true })
+    })
+
+    function handlePointerDown(event) {
+      if (!notificationRootRef.current?.contains(event.target)) {
+        setNotificationsOpen(false)
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setNotificationsOpen(false)
+        notificationButtonRef.current?.focus({ preventScroll: true })
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [loadNotifications, notificationsOpen])
+
+  async function markNotificationRead(notification) {
+    setNotificationsOpen(false)
+
+    if (notification.read_at === null) {
+      const readAt = new Date().toISOString()
+      setNotifications((current) => current.map((item) => (
+        item.id === notification.id ? { ...item, read_at: readAt } : item
+      )))
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: readAt })
+        .eq('id', notification.id)
+        .is('read_at', null)
+
+      if (error) {
+        setNotificationsError('Chưa đánh dấu được thông báo là đã đọc.')
+      }
+    }
+
+    navigate('/matches')
+  }
+
+  async function markAllNotificationsRead() {
+    const userId = notificationUserIdRef.current
+    if (!userId || unreadNotificationCount === 0) return
+
+    const readAt = new Date().toISOString()
+    setNotifications((current) => current.map((notification) => (
+      notification.read_at === null
+        ? { ...notification, read_at: readAt }
+        : notification
+    )))
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read_at: readAt })
+      .eq('recipient_id', userId)
+      .is('read_at', null)
+
+    if (error) {
+      setNotificationsError('Chưa đánh dấu được tất cả thông báo là đã đọc.')
+      await loadNotifications({ silent: true })
+    }
+  }
 
   async function handleLogout(event) {
     event.preventDefault()
 
     try {
       await logoutAccount()
+
+      if (notificationChannelRef.current) {
+        await supabase.removeChannel(notificationChannelRef.current)
+        notificationChannelRef.current = null
+      }
+
       window.location.assign('/login')
     } catch {
       setLogoutError('Không thể đăng xuất. Hãy tải lại trang và thử lại.')
@@ -141,7 +370,82 @@ export default function AppLayout({ children }) {
 
           <div className="topbar-actions">
             <span className="demo-status"><i /> Prototype</span>
-            <Link to="/matches" className="topbar-icon-button" aria-label="Mở kết nối"><Icon name="bell"/><b /></Link>
+            <div className="notification-menu" ref={notificationRootRef}>
+              <button
+                ref={notificationButtonRef}
+                type="button"
+                className="topbar-icon-button"
+                aria-label={`Thông báo${unreadNotificationCount > 0 ? `, ${unreadNotificationCount} chưa đọc` : ''}`}
+                aria-haspopup="dialog"
+                aria-expanded={notificationsOpen}
+                aria-controls="notification-panel"
+                onClick={() => setNotificationsOpen((current) => !current)}
+              >
+                <Icon name="bell" />
+                {unreadNotificationCount > 0 && (
+                  <span className="notification-badge" aria-hidden="true">
+                    {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <section
+                  ref={notificationPanelRef}
+                  id="notification-panel"
+                  className="notification-panel"
+                  role="dialog"
+                  aria-label="Thông báo kết nối"
+                >
+                  <header className="notification-panel-header">
+                    <div>
+                      <span>COCO CAMPUS</span>
+                      <h2>Thông báo</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="notification-mark-all"
+                      disabled={unreadNotificationCount === 0}
+                      onClick={markAllNotificationsRead}
+                    >
+                      Đánh dấu tất cả đã đọc
+                    </button>
+                  </header>
+
+                  {notificationsError && (
+                    <p className="notification-error" role="alert">{notificationsError}</p>
+                  )}
+
+                  <div className="notification-list">
+                    {notificationsLoading ? (
+                      <p className="notification-empty" role="status">Đang tải thông báo…</p>
+                    ) : notifications.length === 0 ? (
+                      <p className="notification-empty">Chưa có thông báo mới.</p>
+                    ) : notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        className={`notification-item ${notification.read_at === null ? 'is-unread' : ''}`}
+                        onClick={() => markNotificationRead(notification)}
+                      >
+                        <span className="notification-item-icon" aria-hidden="true">
+                          <Icon name="connection" />
+                        </span>
+                        <span className="notification-item-copy">
+                          <strong>{getNotificationMessage(notification)}</strong>
+                          <small>{formatNotificationTime(notification.created_at)}</small>
+                        </span>
+                        {notification.read_at === null && (
+                          <span className="notification-unread-dot">
+                            <span className="notification-sr-only">Chưa đọc</span>
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
             <Link to="/profile" className="topbar-account">
               <span className="mobile-avatar">{avatarLetter}</span>
               <span><strong>{fullName}</strong><small>Sinh viên</small></span>
@@ -154,6 +458,10 @@ export default function AppLayout({ children }) {
             {logoutError}
           </div>
         )}
+
+        <p className="notification-live-region" aria-live="polite" aria-atomic="true">
+          {notificationAnnouncement}
+        </p>
 
         <main ref={mainRef} className="app-content" tabIndex="-1">{children}</main>
       </div>
