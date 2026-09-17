@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout, { Icon } from '../components/AppLayout'
-import { accountStorage } from '../auth'
+import { accountStorage, getCurrentAccount } from '../auth'
+import { supabase } from '../lib/supabaseClient'
 import { VIETNAM_LOCATIONS } from '../data/vietnamLocations'
 
-const PROFILE_KEY = 'cocoapp.profile.v1'
 const CONNECTIONS_KEY = 'cocoapp.connections.v1'
 
 function readConnections() {
@@ -37,113 +37,6 @@ function readConnections() {
   return items
 }
 
-const students = [
-  {
-    id: 1,
-    name: 'Nguyễn Minh Anh',
-    gender: 'Nữ',
-    major: 'Công nghệ thông tin',
-    purpose: 'Học nhóm',
-    city: 'Hà Nội',
-    area: 'Hà Đông',
-    location: 'Gần Đại học Phenikaa',
-    distance: 1.2,
-    skills: ['Java', 'Cấu trúc dữ liệu'],
-    about: 'Tìm bạn ôn bài vào tối thứ Ba và thứ Năm.',
-  },
-  {
-    id: 2,
-    name: 'Trần Quang Huy',
-    gender: 'Nam',
-    major: 'Kỹ thuật phần mềm',
-    purpose: 'Team Project',
-    city: 'Hà Nội',
-    area: 'Cầu Giấy',
-    location: 'Khu vực đường Xuân Thủy',
-    distance: 2.4,
-    skills: ['React', 'UI/UX'],
-    about: 'Tìm thành viên cùng làm website cho đồ án môn học.',
-  },
-  {
-    id: 3,
-    name: 'Lê Đức Long',
-    gender: 'Nam',
-    major: 'Khoa học máy tính',
-    purpose: 'Ghép trọ',
-    city: 'Hà Nội',
-    area: 'Hà Đông',
-    location: 'Đường Nguyễn Trác, gần Đại học Phenikaa',
-    distance: 1.6,
-    skills: ['Gọn gàng', 'Không hút thuốc'],
-    about: 'Tìm bạn nam ở ghép, cùng chia tiền phòng và điện nước.',
-  },
-  {
-    id: 4,
-    name: 'Phạm Thu Trang',
-    gender: 'Nữ',
-    major: 'Trí tuệ nhân tạo',
-    purpose: 'Ghép trọ',
-    city: 'Hà Nội',
-    area: 'Hà Đông',
-    location: 'Khu vực Yên Nghĩa',
-    distance: 3.1,
-    skills: ['Yên tĩnh', 'Không nuôi thú cưng'],
-    about: 'Tìm bạn nữ ở cùng, tôn trọng không gian riêng.',
-  },
-  {
-    id: 5,
-    name: 'Đỗ Ngọc Mai',
-    gender: 'Nữ',
-    major: 'Ngôn ngữ Anh',
-    purpose: 'Ghép trọ',
-    city: 'Hà Nội',
-    area: 'Cầu Giấy',
-    location: 'Gần đường Trần Thái Tông',
-    distance: 2,
-    skills: ['Gọn gàng', 'Yên tĩnh'],
-    about: 'Tìm bạn nữ cùng chia phòng, thống nhất giờ nghỉ ngơi.',
-  },
-  {
-    id: 6,
-    name: 'Vũ Minh Khang',
-    gender: 'Nam',
-    major: 'Công nghệ thông tin',
-    purpose: 'Ghép trọ',
-    city: 'Hà Nội',
-    area: 'Cầu Giấy',
-    location: 'Khu vực đường Duy Tân',
-    distance: 2.5,
-    skills: ['Không hút thuốc', 'Tôn trọng riêng tư'],
-    about: 'Tìm bạn nam ở cùng, chia sẻ công việc dọn phòng.',
-  },
-  {
-    id: 7,
-    name: 'Bùi Hải Yến',
-    gender: 'Nữ',
-    major: 'Kinh tế',
-    purpose: 'Học nhóm',
-    city: 'Hà Nội',
-    area: 'Thanh Xuân',
-    location: 'Khu vực đường Nguyễn Trãi',
-    distance: 1.8,
-    skills: ['Tiếng Anh', 'Thuyết trình'],
-    about: 'Tìm bạn luyện tiếng Anh và thuyết trình cuối tuần.',
-  },
-  {
-    id: 8,
-    name: 'Nguyễn Gia Bảo',
-    gender: 'Nam',
-    major: 'Kỹ thuật phần mềm',
-    purpose: 'Team Project',
-    city: 'Đà Nẵng',
-    area: 'Hải Châu',
-    location: 'Khu vực đường Nguyễn Văn Linh',
-    distance: 2.8,
-    skills: ['React', 'Git'],
-    about: 'Tìm bạn cùng xây dựng giao diện cho dự án sinh viên.',
-  },
-]
-
 const purposes = ['Tất cả', 'Học nhóm', 'Team Project', 'Ghép trọ']
 
 function normalize(value) {
@@ -154,39 +47,6 @@ function normalize(value) {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ')
-}
-
-function readProfile() {
-  try {
-    const raw = accountStorage.getItem(PROFILE_KEY)
-
-    if (!raw) {
-      return {
-        data: {},
-        notice: 'Chưa có hồ sơ đã lưu. Hãy hoàn thiện Hồ sơ để tìm bạn ghép trọ.',
-      }
-    }
-
-    const stored = JSON.parse(raw)
-
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
-      throw new Error('Invalid profile')
-    }
-
-    const data = {}
-
-    for (const key of ['gender', 'city', 'area', 'maxDistance']) {
-      data[key] =
-        typeof stored[key] === 'string' ? stored[key].trim() : ''
-    }
-
-    return { data, notice: '' }
-  } catch {
-    return {
-      data: {},
-      notice: 'Không đọc được hồ sơ. Hãy mở Hồ sơ và lưu lại thông tin.',
-    }
-  }
 }
 
 function uniqueLocations(values) {
@@ -205,19 +65,72 @@ function locationText(student) {
   return `${student.city} · ${student.area} · ${student.location}`
 }
 
-export default function Discover({ initialPurpose = 'Tất cả' }) {
-  const [profileResult] = useState(readProfile)
-  const profile = profileResult.data
+function stableNumericId(uuid) {
+  let hash = 0
 
-  const initialDistance = ['1', '3', '5', '10'].includes(profile.maxDistance)
-    ? profile.maxDistance
-    : '5'
+  for (const character of uuid) {
+    hash = (hash * 31 + character.charCodeAt(0)) % 2147483647
+  }
+
+  return hash || 1
+}
+
+function mapProfileToStudent(profile) {
+  const major = profile.major?.trim() || 'Chưa cập nhật ngành học'
+  const city = profile.city?.trim() || 'Chưa cập nhật tỉnh / thành phố'
+  const area = profile.area?.trim() || 'Chưa cập nhật khu vực'
+
+  return {
+    id: stableNumericId(profile.id),
+    profileId: profile.id,
+    name: profile.full_name?.trim() || 'Sinh viên CocoApp',
+    gender: profile.gender?.trim() || '',
+    major,
+    purpose: profile.purpose?.trim() || 'Chưa chọn mục tiêu',
+    city,
+    area,
+    location: profile.public_location?.trim() || area,
+    distance: null,
+    skills: profile.major?.trim() ? [major] : [],
+    about: profile.bio?.trim() || 'Chưa có giới thiệu.',
+  }
+}
+
+function mapProfilePreferences(profile) {
+  return {
+    gender: profile?.gender?.trim() || '',
+    city: profile?.city?.trim() || '',
+    area: profile?.area?.trim() || '',
+    maxDistance: ['1', '3', '5', '10'].includes(String(profile?.max_distance_km))
+      ? String(profile.max_distance_km)
+      : '5',
+  }
+}
+
+function getDiscoverErrorMessage(error) {
+  if (error?.message?.toLowerCase().includes('row-level security')) {
+    return 'Không thể tải hồ sơ do quyền truy cập. Hãy đăng nhập lại và thử lại.'
+  }
+
+  return 'Không thể tải hồ sơ từ Supabase. Hãy thử lại sau.'
+}
+
+export default function Discover({ initialPurpose = 'Tất cả' }) {
+  const [profile, setProfile] = useState({
+    gender: '',
+    city: '',
+    area: '',
+    maxDistance: '5',
+  })
+  const [students, setStudents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   const [search, setSearch] = useState('')
   const [purpose, setPurpose] = useState(initialPurpose)
   const [city, setCity] = useState(profile.city || '')
   const [area, setArea] = useState(profile.area || '')
-  const [maxDistance, setMaxDistance] = useState(initialDistance)
+  const [maxDistance, setMaxDistance] = useState('5')
   const [selectedId, setSelectedId] = useState(null)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [undoStudent, setUndoStudent] = useState(null)
@@ -232,6 +145,57 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
   const [hiddenIds, setHiddenIds] = useState([])
   const dialogRef = useRef(null)
   const lastProfileTriggerRef = useRef(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadDiscoverProfiles() {
+      try {
+        const user = await getCurrentAccount()
+
+        if (!user) throw new Error('Phiên đăng nhập đã hết.')
+
+        const [ownResult, othersResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('gender, city, area, max_distance_km')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('id, full_name, gender, major, purpose, city, area, public_location, bio')
+            .neq('id', user.id),
+        ])
+
+        if (ownResult.error) throw ownResult.error
+        if (othersResult.error) throw othersResult.error
+
+        const preferences = mapProfilePreferences(ownResult.data)
+
+        if (isMounted) {
+          setProfile(preferences)
+          setCity(preferences.city)
+          setArea(preferences.area)
+          setMaxDistance(preferences.maxDistance)
+          setStudents((othersResult.data || []).map(mapProfileToStudent))
+          setLoadError('')
+        }
+      } catch (error) {
+        if (isMounted) {
+          setStudents([])
+          setLoadError(getDiscoverErrorMessage(error))
+        }
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    loadDiscoverProfiles()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const canFilterRoommates = ['Nam', 'Nữ', 'Khác'].includes(profile.gender)
 
@@ -269,7 +233,7 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
       (purpose === 'Tất cả' || student.purpose === purpose) &&
       (!city || normalize(student.city) === normalize(city)) &&
       (!area || normalize(student.area) === normalize(area)) &&
-      student.distance <= Number(maxDistance) &&
+      (student.distance === null || student.distance <= Number(maxDistance)) &&
       genderMatches &&
       !hiddenIds.includes(student.id)
     )
@@ -380,9 +344,9 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
         </header>
 
         <p className="discover-demo-note">
-          Hồ sơ sinh viên và khoảng cách là dữ liệu mẫu.
-          Khoảng cách không được tính từ vị trí của cậu.
-          Lời mời chỉ mô phỏng trong trang hiện tại.
+          Hồ sơ sinh viên được tải từ Supabase.
+          Khoảng cách sẽ được bổ sung khi có dữ liệu vị trí phù hợp.
+          Lời mời vẫn mô phỏng trong trang hiện tại.
         </p>
 
         <div className="discover-trust-bar">
@@ -391,10 +355,15 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
           <div><span><Icon name="discover" /></span><strong>Lọc theo mục tiêu</strong><small>Học tập, dự án hoặc ghép trọ</small></div>
         </div>
 
-        {profileResult.notice && (
-          <div className="form-error-banner" role="status">
-            {profileResult.notice}{' '}
-            <Link to="/profile">Mở Hồ sơ</Link>
+        {isLoading && (
+          <div className="form-error-banner" role="status" aria-live="polite">
+            Đang tải hồ sơ từ Supabase…
+          </div>
+        )}
+
+        {loadError && (
+          <div className="form-error-banner" role="alert" aria-live="assertive">
+            {loadError}
           </div>
         )}
 
@@ -573,8 +542,9 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
                     <p className="student-location">
                       {locationText(student)}
                       <br />
-                      Khoảng cách mẫu:{' '}
-                      {student.distance.toLocaleString('vi-VN')} km
+                      {student.distance === null
+                        ? 'Khoảng cách: Chưa có dữ liệu'
+                        : `Khoảng cách: ${student.distance.toLocaleString('vi-VN')} km`}
                     </p>
 
                     <p className="student-about">{student.about}</p>
@@ -602,13 +572,14 @@ export default function Discover({ initialPurpose = 'Tất cả' }) {
               })}
             </div>
 
-            {filteredStudents.length === 0 && (
+            {!isLoading && filteredStudents.length === 0 && (
               <div className="discover-empty-state">
                 <div className="discover-empty-icon" aria-hidden="true"><Icon name="discover" /></div>
-                <h2>Chưa có kết quả phù hợp</h2>
+                <h2>{students.length === 0 ? 'Chưa có người dùng khác' : 'Chưa có kết quả phù hợp'}</h2>
                 <p>
-                  Bộ dữ liệu mẫu chưa bao phủ mọi khu vực.
-                  Thử đổi địa điểm, tăng khoảng cách hoặc đặt lại bộ lọc.
+                  {students.length === 0
+                    ? 'Khi có thêm hồ sơ công khai, cậu sẽ thấy các kết nối phù hợp ở đây.'
+                    : 'Thử đổi địa điểm, tăng khoảng cách hoặc đặt lại bộ lọc.'}
                 </p>
                 <button type="button" onClick={resetFilters}>
                   Đặt lại bộ lọc
