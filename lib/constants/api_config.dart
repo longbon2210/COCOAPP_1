@@ -12,11 +12,25 @@ class ApiConfig {
   static String get baseUrl {
     if (manualOverrideUrl != null) return manualOverrideUrl!;
     if (kIsWeb) {
-      final origin = Uri.base.origin;
-      if (origin.isNotEmpty && origin != 'null' && (origin.contains(':5000') || origin.contains(':3000'))) {
-        return origin;
+      // Cho phép truyền query param ?api=https://... trên thanh địa chỉ để tùy chỉnh backend nếu cần
+      final qApi = Uri.base.queryParameters['api'];
+      if (qApi != null && qApi.isNotEmpty) {
+        return qApi;
       }
-      return dotnetLocalUrl;
+
+      final origin = Uri.base.origin;
+      if (origin.isNotEmpty && origin != 'null') {
+        // Nếu đang chạy thử nghiệm cục bộ với cổng 5000 hoặc 3000
+        if (origin.contains(':5000') || origin.contains(':3000')) {
+          return origin;
+        }
+        // Nếu triển khai trên Vercel / Render / Netlify có proxy nội bộ
+        if (origin.contains('vercel.app') || origin.contains('onrender.com') || origin.contains('netlify.app')) {
+          return origin;
+        }
+      }
+      // Khi truy cập qua link công khai ngoài internet (GitHub Pages, v.v.): Trỏ về Somee Cloud Backend
+      return someeUrl;
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
       return androidEmulatorUrl;

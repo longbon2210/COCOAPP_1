@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "outputDirectory": "build/web",
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "http://cocoapp-api.somee.com/api/:match*"
+    },
+    {
+      "source": "/chatHub/:match*",
+      "destination": "http://cocoapp-api.somee.com/chatHub/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}
