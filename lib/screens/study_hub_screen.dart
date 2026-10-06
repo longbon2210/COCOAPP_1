@@ -33,7 +33,7 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
     super.initState();
     _loadUserSession();
     _fetchPosts();
-    _materials = StudyMaterial.getSampleMaterials();
+    _loadMaterials();
   }
 
   Future<void> _loadUserSession() async {
@@ -41,6 +41,25 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
     final email = prefs.getString('user_email');
     if (email != null && email.isNotEmpty) {
       if (mounted) setState(() => _userEmail = email);
+    }
+  }
+
+  Future<void> _loadMaterials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customList = prefs.getStringList('my_study_materials') ?? [];
+    final customMaterials = customList.map((str) {
+      try {
+        return StudyMaterial.fromJson(jsonDecode(str));
+      } catch (_) {
+        return null;
+      }
+    }).whereType<StudyMaterial>().toList();
+
+    final samples = StudyMaterial.getSampleMaterials();
+    if (mounted) {
+      setState(() {
+        _materials = [...customMaterials, ...samples];
+      });
     }
   }
 
@@ -63,18 +82,31 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
     );
 
     if (confirm == true) {
-      try {
-        final res = await http.delete(Uri.parse('${ApiConfig.posts}?id=${post.id}'));
-        if (res.statusCode == 200) {
-          _fetchPosts();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đã xóa bài đăng thành công!'), backgroundColor: AppColors.success),
-            );
-          }
+      setState(() {
+        _posts.removeWhere((p) => p.id == post.id);
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final customList = prefs.getStringList('my_study_posts') ?? [];
+      final updatedList = customList.where((str) {
+        try {
+          return jsonDecode(str)['id'] != post.id;
+        } catch (_) {
+          return true;
         }
+      }).toList();
+      await prefs.setStringList('my_study_posts', updatedList);
+
+      try {
+        await http.delete(Uri.parse('${ApiConfig.posts}?id=${post.id}'));
       } catch (e) {
-        debugPrint('Lỗi xóa bài đăng: $e');
+        debugPrint('Lỗi xóa bài đăng từ server: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa bài đăng thành công!'), backgroundColor: AppColors.success),
+        );
       }
     }
   }
@@ -87,24 +119,60 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
 
   Future<void> _fetchPosts() async {
     setState(() => _isLoadingPosts = true);
+
+    // 1. Tải danh sách bài đăng tùy chỉnh đã lưu trong SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final customList = prefs.getStringList('my_study_posts') ?? [];
+    final customPosts = customList.map((str) {
+      try {
+        return StudyPost.fromJson(jsonDecode(str));
+      } catch (_) {
+        return null;
+      }
+    }).whereType<StudyPost>().toList();
+
     try {
       final res = await http.get(Uri.parse(ApiConfig.posts)).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
         final loaded = data.map((e) => StudyPost.fromJson(e as Map<String, dynamic>)).toList();
-        setState(() {
-          _posts = loaded.isNotEmpty ? loaded : StudyPost.getSamplePosts();
-        });
+        final all = loaded.isNotEmpty ? loaded : StudyPost.getSamplePosts();
+
+        for (final cp in customPosts.reversed) {
+          if (!all.any((p) => p.id == cp.id)) {
+            all.insert(0, cp);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _posts = all;
+          });
+        }
       } else {
-        setState(() {
-          if (_posts.isEmpty) _posts = StudyPost.getSamplePosts();
-        });
+        final all = StudyPost.getSamplePosts();
+        for (final cp in customPosts.reversed) {
+          if (!all.any((p) => p.id == cp.id)) {
+            all.insert(0, cp);
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _posts = all;
+          });
+        }
       }
     } catch (e) {
       debugPrint('Lỗi tải bài đăng học tập từ server: $e');
+      final all = StudyPost.getSamplePosts();
+      for (final cp in customPosts.reversed) {
+        if (!all.any((p) => p.id == cp.id)) {
+          all.insert(0, cp);
+        }
+      }
       if (mounted) {
         setState(() {
-          if (_posts.isEmpty) _posts = StudyPost.getSamplePosts();
+          _posts = all;
         });
       }
     } finally {
@@ -113,126 +181,406 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
   }
 
   void _showCreatePostDialog() {
+    if (_activeTab == 0) {
+      _showCreateGroupDialog();
+    } else {
+      _showCreateMaterialDialog();
+    }
+  }
+
+  // DIALOG TẠO NHÓM HỌC TẬP MỚI
+  void _showCreateGroupDialog() {
     final titleController = TextEditingController();
     final descController = TextEditingController();
     final subjectController = TextEditingController(text: 'Đồ án tốt nghiệp');
+    final universityController = TextEditingController(text: 'ICTU');
+    final contactController = TextEditingController(text: '0988 123 456');
     int needed = 3;
+    String studyType = 'Online & Offline kết hợp';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: const [
-                Icon(Icons.group_add_rounded, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('Đăng Tin Tìm Bạn Học Thực Tế', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
+          return Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
-            content: SingleChildScrollView(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            ),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.group_add_rounded, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Tạo Nhóm Học Tập & Đồ Án Mới 🎓',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Đăng tin tuyển thành viên học nhóm đồ án, ôn thi hoặc tự học tại trường.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 18),
                   TextField(
                     controller: titleController,
                     decoration: const InputDecoration(
-                      labelText: 'Tiêu đề bài đăng',
-                      hintText: 'VD: Cần 2 bạn làm đồ án tốt nghiệp Flutter',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: subjectController,
-                    decoration: const InputDecoration(
-                      labelText: 'Môn học / Lĩnh vực',
-                      hintText: 'VD: Đồ án CNTT, TOEIC, Thuật toán',
+                      labelText: 'Tiêu đề nhóm học tập *',
+                      hintText: 'VD: Nhóm làm Đồ án Tốt nghiệp Flutter K21',
+                      prefixIcon: Icon(Icons.title_rounded),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Text('Số thành viên cần tuyển:', style: TextStyle(fontSize: 13)),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: needed > 1 ? () => setDialogState(() => needed--) : null,
+                      Expanded(
+                        child: TextField(
+                          controller: subjectController,
+                          decoration: const InputDecoration(
+                            labelText: 'Môn học / Lĩnh vực',
+                            hintText: 'VD: Đồ án CNTT, TOEIC',
+                            prefixIcon: Icon(Icons.book_outlined),
+                          ),
+                        ),
                       ),
-                      Text('$needed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: () => setDialogState(() => needed++),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: universityController,
+                          decoration: const InputDecoration(
+                            labelText: 'Trường đại học',
+                            hintText: 'ICTU, TNUT...',
+                            prefixIcon: Icon(Icons.school_outlined),
+                          ),
+                        ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.people_outline_rounded, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 10),
+                        const Text('Số thành viên cần tuyển:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, color: AppColors.textSecondary),
+                          onPressed: needed > 1 ? () => setDialogState(() => needed--) : null,
+                        ),
+                        Text('$needed bạn', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary)),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                          onPressed: needed < 10 ? () => setDialogState(() => needed++) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: contactController,
+                    decoration: const InputDecoration(
+                      labelText: 'Thông tin liên hệ (Zalo / SĐT)',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: descController,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'Mô tả chi tiết mục tiêu & yêu cầu',
+                      labelText: 'Mục tiêu nhóm & yêu cầu thành viên',
+                      hintText: 'VD: Nhóm họp vào các buổi tối, cần bạn có tinh thần trách nhiệm cao...',
                       alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 3,
+                      ),
+                      onPressed: () async {
+                        if (titleController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Vui lòng nhập tiêu đề nhóm học!'), backgroundColor: AppColors.error),
+                          );
+                          return;
+                        }
+
+                        final prefs = await SharedPreferences.getInstance();
+                        final myEmail = prefs.getString('user_email') ?? '0000@gmail.com';
+                        final myName = myEmail.split('@').first;
+
+                        final newPost = StudyPost(
+                          id: 'post_custom_${DateTime.now().millisecondsSinceEpoch}',
+                          authorName: myName,
+                          authorEmail: myEmail,
+                          authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
+                          university: universityController.text.trim().isNotEmpty ? universityController.text.trim() : 'ICTU',
+                          title: titleController.text.trim(),
+                          description: descController.text.trim().isNotEmpty
+                              ? descController.text.trim()
+                              : 'Cần tìm các bạn sinh viên cùng chí hướng học tập, liên hệ: ${contactController.text.trim()}',
+                          subject: subjectController.text.trim().isNotEmpty ? subjectController.text.trim() : 'Học tập',
+                          tags: [subjectController.text.trim(), universityController.text.trim(), studyType, 'Tuyển TV'],
+                          membersCurrent: 1,
+                          membersNeeded: needed,
+                          createdAt: DateTime.now(),
+                          partnerId: 0,
+                        );
+
+                        // 1. Thêm vào đầu danh sách state ngay lập tức
+                        setState(() {
+                          _posts.insert(0, newPost);
+                        });
+
+                        // 2. Lưu vào SharedPreferences để không bị mất khi F5
+                        final customList = prefs.getStringList('my_study_posts') ?? [];
+                        customList.insert(0, jsonEncode(newPost.toJson()));
+                        await prefs.setStringList('my_study_posts', customList);
+
+                        // 3. Gửi lên Backend API nếu có mạng
+                        try {
+                          await http.post(
+                            Uri.parse(ApiConfig.posts),
+                            headers: {'Content-Type': 'application/json; charset=utf-8'},
+                            body: jsonEncode(newPost.toJson()),
+                          );
+                        } catch (e) {
+                          debugPrint('Lỗi gửi bài đăng lên server: $e');
+                        }
+
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🎉 Đã tạo nhóm học tập mới thành công! Nhóm của bạn đang hiển thị ở đầu danh sách.'),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Tạo Nhóm Ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Hủy', style: TextStyle(color: AppColors.textMuted)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () async {
-                  if (titleController.text.trim().isEmpty) return;
+          );
+        },
+      ),
+    );
+  }
 
-                  final prefs = await SharedPreferences.getInstance();
-                  final myEmail = prefs.getString('user_email') ?? '0000@gmail.com';
-                  final myName = myEmail.split('@').first;
+  // DIALOG CHIA SẺ TÀI LIỆU HỌC TẬP MỚI
+  void _showCreateMaterialDialog() {
+    final titleController = TextEditingController();
+    final subjectController = TextEditingController(text: 'Công nghệ thông tin');
+    final descController = TextEditingController();
+    String fileType = 'PDF';
 
-                  try {
-                    await http.post(
-                      Uri.parse(ApiConfig.posts),
-                      headers: {'Content-Type': 'application/json; charset=utf-8'},
-                      body: jsonEncode({
-                        'authorName': myName,
-                        'authorEmail': myEmail,
-                        'authorAvatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
-                        'university': 'ICTU',
-                        'title': titleController.text.trim(),
-                        'description': descController.text.trim().isNotEmpty
-                            ? descController.text.trim()
-                            : 'Cần tìm bạn sinh viên cùng chí hướng học tập và trao đổi tài liệu.',
-                        'subject': subjectController.text.trim(),
-                        'tags': [subjectController.text.trim(), 'ICTU', 'Học nhóm'],
-                        'membersCurrent': 1,
-                        'membersNeeded': needed,
-                      }),
-                    );
-                    await _fetchPosts();
-                  } catch (e) {
-                    debugPrint('Lỗi đăng bài học tập: $e');
-                  }
-
-                  if (context.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã đăng bài thành công lên hệ thống! 🎉'),
-                        backgroundColor: AppColors.success,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    );
-                  }
-                },
-                child: const Text('Đăng Tin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.upload_file_rounded, color: AppColors.secondary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Chia Sẻ Tài Liệu & Đề Thi 📚',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Chia sẻ giáo trình, đề thi các kỳ hoặc bài tập lớn cho cộng đồng sinh viên.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên tài liệu / giáo trình *',
+                      hintText: 'VD: Tổng hợp Đề thi & Đáp án Cấu trúc dữ liệu',
+                      prefixIcon: Icon(Icons.menu_book_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: subjectController,
+                    decoration: const InputDecoration(
+                      labelText: 'Môn học / Chuyên ngành',
+                      hintText: 'VD: Cơ sở dữ liệu, Tiếng Anh...',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: ['PDF', 'ZIP', 'DOCX', 'SLIDE'].map((type) {
+                      final isSel = fileType == type;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ChoiceChip(
+                          label: Text(type, style: TextStyle(color: isSel ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 12)),
+                          selected: isSel,
+                          selectedColor: AppColors.primary,
+                          onSelected: (_) => setDialogState(() => fileType = type),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Mô tả tóm tắt tài liệu / Link Google Drive',
+                      hintText: 'VD: Tài liệu bao gồm 5 đề thi các năm 2022-2024 có đáp án chi tiết...',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () async {
+                        if (titleController.text.trim().isEmpty) return;
+
+                        final prefs = await SharedPreferences.getInstance();
+                        final myEmail = prefs.getString('user_email') ?? '0000@gmail.com';
+                        final myName = myEmail.split('@').first;
+
+                        final newMat = StudyMaterial(
+                          id: 'mat_custom_${DateTime.now().millisecondsSinceEpoch}',
+                          title: titleController.text.trim(),
+                          courseName: subjectController.text.trim().isNotEmpty ? subjectController.text.trim() : 'Chung',
+                          fileType: fileType,
+                          fileSize: '3.5 MB',
+                          authorName: myName,
+                          university: 'ICTU',
+                          downloadCount: 1,
+                          likesCount: 1,
+                          rating: 5.0,
+                          description: descController.text.trim(),
+                          uploadDate: DateTime.now(),
+                        );
+
+                        setState(() {
+                          _materials.insert(0, newMat);
+                        });
+
+                        final customList = prefs.getStringList('my_study_materials') ?? [];
+                        customList.insert(0, jsonEncode(newMat.toJson()));
+                        await prefs.setStringList('my_study_materials', customList);
+
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🎉 Đã chia sẻ tài liệu thành công lên kho học tập!'),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Chia Sẻ Ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -245,19 +593,17 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: isDesktop
-          ? null
-          : FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(
-                _activeTab == 0 ? 'Tạo Nhóm Học Mới' : 'Chia Sẻ Tài Liệu',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onPressed: _showCreatePostDialog,
-            ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        icon: Icon(_activeTab == 0 ? Icons.group_add_rounded : Icons.upload_file_rounded),
+        label: Text(
+          _activeTab == 0 ? 'Tạo Nhóm Học Mới' : 'Chia Sẻ Tài Liệu',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        onPressed: _showCreatePostDialog,
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -265,10 +611,10 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
             child: Column(
               children: [
                 // 1. THANH HEADER
-                if (!isDesktop) _buildHeader(),
+                _buildHeader(isDesktop),
 
                 // 2. Ô TÌM KIẾM
-                _buildSearchBar(),
+                _buildSearchBar(isDesktop),
 
                 // 3. SEGMENTED TABS
                 _buildSegmentedTab(),
@@ -294,9 +640,9 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isDesktop) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+      padding: EdgeInsets.fromLTRB(18, isDesktop ? 16 : 14, 18, isDesktop ? 14 : 10),
       color: Colors.white,
       child: Row(
         children: [
@@ -335,48 +681,94 @@ class _StudyHubScreenState extends State<StudyHubScreen> {
               ],
             ),
           ),
+          if (isDesktop) ...[
+            ElevatedButton.icon(
+              onPressed: _showCreatePostDialog,
+              icon: Icon(_activeTab == 0 ? Icons.group_add_rounded : Icons.upload_file_rounded, size: 18),
+              label: Text(
+                _activeTab == 0 ? 'Tạo Nhóm Học Mới' : 'Chia Sẻ Tài Liệu',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             tooltip: 'Làm mới',
-            onPressed: _fetchPosts,
+            onPressed: () {
+              _fetchPosts();
+              _loadMaterials();
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(bool isDesktop) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: _activeTab == 0
-                ? 'Tìm nhóm Đồ án, TOEIC, Flutter, Thuật toán...'
-                : 'Tìm đề thi, giáo trình, slide bài giảng...',
-            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {});
-                    },
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: _activeTab == 0
+                      ? 'Tìm nhóm Đồ án, TOEIC, Flutter, Thuật toán...'
+                      : 'Tìm đề thi, giáo trình, slide bài giảng...',
+                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: _showCreatePostDialog,
+            icon: Icon(
+              _activeTab == 0 ? Icons.group_add_rounded : Icons.upload_file_rounded,
+              size: 18,
+            ),
+            label: Text(
+              _activeTab == 0 ? 'Tạo Nhóm Mới' : 'Chia Sẻ',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 18 : 12, vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
       ),
     );
   }

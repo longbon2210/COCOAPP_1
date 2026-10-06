@@ -31,6 +31,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'Tất cả';
   final TextEditingController _searchController = TextEditingController();
+  String _userEmail = '0000@gmail.com';
 
   Future<void> _handleSwipeUser(UserProfile user, bool isLike) async {
     final result = await MatchService().recordSwipeDetailed(user: user, isLike: isLike);
@@ -116,8 +117,17 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserSession();
     _fetchUsers();
     _fetchRooms();
+  }
+
+  Future<void> _loadUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    if (email != null && email.isNotEmpty) {
+      if (mounted) setState(() => _userEmail = email);
+    }
   }
 
   @override
@@ -130,6 +140,17 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     final myEmail = (prefs.getString('user_email') ?? '0000@gmail.com').toLowerCase();
+    _userEmail = myEmail;
+
+    final customUserList = prefs.getStringList('my_roommate_posts') ?? [];
+    final customUsers = customUserList.map((str) {
+      try {
+        return UserProfile.fromJson(jsonDecode(str));
+      } catch (_) {
+        return null;
+      }
+    }).whereType<UserProfile>().toList();
+
     final url = Uri.parse(ApiConfig.users);
 
     try {
@@ -144,21 +165,44 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             .where((u) => u.email.toLowerCase() != myEmail)
             .toList();
 
-        setState(() {
-          _allUsers = users.isNotEmpty ? users : UserProfile.getSampleProfiles();
-          _applyFilter();
-        });
+        final all = users.isNotEmpty ? users : UserProfile.getSampleProfiles();
+        for (final cu in customUsers.reversed) {
+          if (!all.any((u) => u.id == cu.id)) {
+            all.insert(0, cu);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _allUsers = all;
+            _applyFilter();
+          });
+        }
       } else {
-        setState(() {
-          if (_allUsers.isEmpty) _allUsers = UserProfile.getSampleProfiles();
-          _applyFilter();
-        });
+        final all = UserProfile.getSampleProfiles();
+        for (final cu in customUsers.reversed) {
+          if (!all.any((u) => u.id == cu.id)) {
+            all.insert(0, cu);
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _allUsers = all;
+            _applyFilter();
+          });
+        }
       }
     } catch (e) {
       debugPrint('Lỗi tải danh sách người dùng thực tế: $e');
+      final all = UserProfile.getSampleProfiles();
+      for (final cu in customUsers.reversed) {
+        if (!all.any((u) => u.id == cu.id)) {
+          all.insert(0, cu);
+        }
+      }
       if (mounted) {
         setState(() {
-          if (_allUsers.isEmpty) _allUsers = UserProfile.getSampleProfiles();
+          _allUsers = all;
           _applyFilter();
         });
       }
@@ -168,28 +212,150 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
   }
 
   Future<void> _fetchRooms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customRoomList = prefs.getStringList('my_room_listings') ?? [];
+    final customRooms = customRoomList.map((str) {
+      try {
+        return RoomListing.fromJson(jsonDecode(str));
+      } catch (_) {
+        return null;
+      }
+    }).whereType<RoomListing>().toList();
+
     try {
       final res = await http.get(Uri.parse(ApiConfig.rooms)).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
         final rooms = data.map((e) => RoomListing.fromJson(e as Map<String, dynamic>)).toList();
-        setState(() {
-          _allRooms = rooms.isNotEmpty ? rooms : RoomListing.getSampleRooms();
-          _applyFilter();
-        });
+        final all = rooms.isNotEmpty ? rooms : RoomListing.getSampleRooms();
+        for (final cr in customRooms.reversed) {
+          if (!all.any((r) => r.id == cr.id)) {
+            all.insert(0, cr);
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _allRooms = all;
+            _applyFilter();
+          });
+        }
       } else {
-        setState(() {
-          if (_allRooms.isEmpty) _allRooms = RoomListing.getSampleRooms();
-          _applyFilter();
-        });
+        final all = RoomListing.getSampleRooms();
+        for (final cr in customRooms.reversed) {
+          if (!all.any((r) => r.id == cr.id)) {
+            all.insert(0, cr);
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _allRooms = all;
+            _applyFilter();
+          });
+        }
       }
     } catch (e) {
       debugPrint('Lỗi tải danh sách phòng trọ: $e');
+      final all = RoomListing.getSampleRooms();
+      for (final cr in customRooms.reversed) {
+        if (!all.any((r) => r.id == cr.id)) {
+          all.insert(0, cr);
+        }
+      }
       if (mounted) {
         setState(() {
-          if (_allRooms.isEmpty) _allRooms = RoomListing.getSampleRooms();
+          _allRooms = all;
           _applyFilter();
         });
+      }
+    }
+  }
+
+  Future<void> _deleteUserPost(UserProfile user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Xóa Bài Đăng Ở Ghép?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Bạn có chắc muốn xóa bài đăng tìm ở ghép của "${user.name}" không?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _allUsers.removeWhere((u) => u.id == user.id);
+        _applyFilter();
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final customList = prefs.getStringList('my_roommate_posts') ?? [];
+      final updatedList = customList.where((str) {
+        try {
+          return jsonDecode(str)['id'] != user.id;
+        } catch (_) {
+          return true;
+        }
+      }).toList();
+      await prefs.setStringList('my_roommate_posts', updatedList);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa bài đăng ở ghép thành công!'), backgroundColor: AppColors.success),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteRoomPost(RoomListing room) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Xóa Bài Đăng Phòng Trọ?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Bạn có chắc muốn xóa bài đăng phòng "${room.title}" không?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _allRooms.removeWhere((r) => r.id == room.id);
+        _applyFilter();
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final customList = prefs.getStringList('my_room_listings') ?? [];
+      final updatedList = customList.where((str) {
+        try {
+          return jsonDecode(str)['id'] != room.id;
+        } catch (_) {
+          return true;
+        }
+      }).toList();
+      await prefs.setStringList('my_room_listings', updatedList);
+
+      try {
+        await http.delete(Uri.parse('${ApiConfig.rooms}?id=${room.id}'));
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa bài đăng phòng trọ thành công!'), backgroundColor: AppColors.success),
+        );
       }
     }
   }
@@ -236,6 +402,374 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
   }
 
   void _showCreatePostDialog() {
+    if (_viewMode == 0) {
+      _showCreateRoommatePostDialog();
+    } else {
+      _showCreateRoomPostDialog();
+    }
+  }
+
+  // DIALOG TẠO BÀI ĐĂNG TÌM BẠN Ở GHÉP MỚI
+  void _showCreateRoommatePostDialog() {
+    final nameController = TextEditingController(
+      text: _userEmail.isNotEmpty ? _userEmail.split('@').first : 'Sinh viên',
+    );
+    final universityController = TextEditingController(text: 'ICTU');
+    final majorController = TextEditingController(text: 'Công nghệ thông tin');
+    final locationController = TextEditingController(text: 'Đường Z115, gần cổng trường ICTU');
+    final budgetController = TextEditingController(text: '1500000');
+    final phoneController = TextEditingController(text: '0988 123 456');
+    final goalController = TextEditingController(text: 'Học cùng đồ án CNTT, ôn thi & chia sẻ tiền phòng');
+    final descController = TextEditingController();
+
+    String gender = 'Nam';
+    String roomStatus = 'Đã có phòng sẵn (tìm bạn ở cùng)';
+
+    final List<String> availableLifestyles = [
+      '🚭 Không hút thuốc',
+      '🌙 Ngủ trước 24h',
+      '☕ Cú đêm học bài',
+      '📚 Cần không gian yên tĩnh',
+      '🍳 Nấu ăn tại phòng',
+      '🧹 Giữ gìn vệ sinh sạch sẽ',
+      '🚫 Không nuôi pet',
+      '🐾 Yêu thích thú cưng',
+      '🎮 Chơi game có chừng mực',
+    ];
+    final Set<String> selectedLifestyles = {'🚭 Không hút thuốc', '🌙 Ngủ trước 24h', '🧹 Giữ gìn vệ sinh sạch sẽ'};
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.person_add_rounded, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Đăng Tin Tìm Bạn Ở Ghép 🤝',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tìm bạn cùng phòng hợp tính, cùng trường & chia sẻ tiền thuê phòng.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Họ tên & Giới tính
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Họ và tên người đăng *',
+                            hintText: 'VD: Hoàng Minh Châu',
+                            prefixIcon: Icon(Icons.person_outline_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 1,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: gender,
+                          decoration: const InputDecoration(labelText: 'Giới tính'),
+                          items: const [
+                            DropdownMenuItem(value: 'Nam', child: Text('Nam')),
+                            DropdownMenuItem(value: 'Nữ', child: Text('Nữ')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setDialogState(() => gender = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Trường & Ngành học
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: universityController,
+                          decoration: const InputDecoration(
+                            labelText: 'Trường học *',
+                            hintText: 'ICTU, TNUT...',
+                            prefixIcon: Icon(Icons.school_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: majorController,
+                          decoration: const InputDecoration(
+                            labelText: 'Ngành học',
+                            hintText: 'CNTT, KTPM...',
+                            prefixIcon: Icon(Icons.book_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tình trạng phòng hiện tại
+                  DropdownButtonFormField<String>(
+                    initialValue: roomStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Tình trạng phòng trọ hiện tại *',
+                      prefixIcon: Icon(Icons.house_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Đã có phòng sẵn (tìm bạn ở cùng)',
+                        child: Text('Đã có phòng sẵn (tìm bạn ở cùng)', style: TextStyle(fontSize: 13)),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Chưa có phòng (tìm bạn cùng tìm trọ)',
+                        child: Text('Chưa có phòng (tìm bạn cùng tìm trọ)', style: TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => roomStatus = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Địa chỉ & Ngân sách
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: locationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Khu vực / Địa chỉ phòng',
+                            hintText: 'Đường Z115, cổng trường ICTU',
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 1,
+                        child: TextField(
+                          controller: budgetController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Ngân sách/tháng',
+                            hintText: '1500000',
+                            prefixIcon: Icon(Icons.attach_money_rounded),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Số điện thoại / Zalo
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Số điện thoại / Zalo liên hệ *',
+                      hintText: '0988 123 456',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Thói quen lối sống (Chips)
+                  const Text('Thói quen & Lối sống của bạn:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: availableLifestyles.map((trait) {
+                      final isSel = selectedLifestyles.contains(trait);
+                      return FilterChip(
+                        label: Text(trait, style: TextStyle(fontSize: 12, color: isSel ? Colors.white : AppColors.textPrimary, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
+                        selected: isSel,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.background,
+                        checkmarkColor: Colors.white,
+                        onSelected: (selected) {
+                          setDialogState(() {
+                            if (selected) {
+                              selectedLifestyles.add(trait);
+                            } else {
+                              selectedLifestyles.remove(trait);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Mục tiêu học tập
+                  TextField(
+                    controller: goalController,
+                    decoration: const InputDecoration(
+                      labelText: 'Mục tiêu học tập & sinh hoạt',
+                      hintText: 'Cùng học đồ án, ôn thi tiếng Anh...',
+                      prefixIcon: Icon(Icons.flag_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Mô tả chi tiết
+                  TextField(
+                    controller: descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Mô tả thêm về bản thân & yêu cầu bạn cùng phòng',
+                      hintText: 'VD: Mình thích nấu ăn, tính tình hòa đồng vui vẻ, cần tìm bạn có ý thức giữ vệ sinh chung...',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Nút submit
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 3,
+                      ),
+                      onPressed: () async {
+                        if (nameController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Vui lòng nhập họ và tên của bạn!'), backgroundColor: AppColors.error),
+                          );
+                          return;
+                        }
+
+                        final prefs = await SharedPreferences.getInstance();
+                        final myEmail = prefs.getString('user_email') ?? '0000@gmail.com';
+                        final double budget = double.tryParse(budgetController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1500000;
+                        final int newId = DateTime.now().millisecondsSinceEpoch % 1000000;
+
+                        final newProfile = UserProfile(
+                          id: newId,
+                          email: myEmail,
+                          name: nameController.text.trim(),
+                          university: universityController.text.trim().isNotEmpty ? universityController.text.trim() : 'ICTU',
+                          major: majorController.text.trim().isNotEmpty ? majorController.text.trim() : 'Công nghệ thông tin',
+                          avatarUrl: gender == 'Nữ'
+                              ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500'
+                              : 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500',
+                          bio: descController.text.trim().isNotEmpty
+                              ? descController.text.trim()
+                              : 'Sinh viên ${majorController.text.trim()} tại ${universityController.text.trim()}. Tự lập, hòa đồng, cần tìm bạn ở ghép. Liên hệ: ${phoneController.text.trim()}',
+                          rentalBudget: budget,
+                          roomLocation: locationController.text.trim().isNotEmpty ? locationController.text.trim() : 'Gần trường ICTU',
+                          roomStatus: roomStatus,
+                          gender: gender,
+                          isSmoker: selectedLifestyles.contains('🚬 Có hút thuốc'),
+                          hasPet: selectedLifestyles.contains('🐾 Yêu thích thú cưng'),
+                          studyGoal: goalController.text.trim().isNotEmpty ? goalController.text.trim() : 'Cùng học tập và chia sẻ phòng',
+                          studySkills: [majorController.text.trim(), 'Tìm ở ghép'],
+                          lifestyleTags: selectedLifestyles.isNotEmpty ? selectedLifestyles.toList() : ['🚭 Không hút thuốc', '🧹 Sạch sẽ'],
+                          compatibilityScore: 99,
+                          isOnline: true,
+                        );
+
+                        // 1. Cập nhật state ngay lập tức
+                        setState(() {
+                          _allUsers.insert(0, newProfile);
+                          _applyFilter();
+                        });
+
+                        // 2. Lưu vào SharedPreferences
+                        final customList = prefs.getStringList('my_roommate_posts') ?? [];
+                        customList.insert(0, jsonEncode(newProfile.toJson()));
+                        await prefs.setStringList('my_roommate_posts', customList);
+
+                        // 3. Gửi lên API nếu có
+                        try {
+                          await http.post(
+                            Uri.parse(ApiConfig.users),
+                            headers: {'Content-Type': 'application/json; charset=utf-8'},
+                            body: jsonEncode(newProfile.toJson()),
+                          );
+                        } catch (e) {
+                          debugPrint('Lỗi đồng bộ hồ sơ lên server: $e');
+                        }
+
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🎉 Đã đăng tin tìm bạn ở ghép thành công! Bài đăng của bạn hiển thị ngay ở đầu danh sách.'),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Đăng Tin Ở Ghép Ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // DIALOG TẠO BÀI ĐĂNG PHÒNG TRỌ MỚI
+  void _showCreateRoomPostDialog() {
     final titleController = TextEditingController();
     final locationController = TextEditingController(text: 'Đường Z115, gần ICTU');
     final budgetController = TextEditingController(text: '1800000');
@@ -274,7 +808,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Đăng Tin Tìm Trọ / Cho Thuê Thực Tế 📝',
+                'Đăng Tin Phòng Trọ / Cho Thuê 📝',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 6),
@@ -286,8 +820,8 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
               TextField(
                 controller: titleController,
                 decoration: const InputDecoration(
-                  labelText: 'Tiêu đề bài đăng',
-                  hintText: 'VD: Tìm 1 bạn nam ở ghép phòng khép kín ICTU',
+                  labelText: 'Tiêu đề bài đăng *',
+                  hintText: 'VD: Phòng khép kín có ban công, gần cổng trường ICTU',
                   prefixIcon: Icon(Icons.title_rounded),
                 ),
               ),
@@ -295,7 +829,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
               TextField(
                 controller: locationController,
                 decoration: const InputDecoration(
-                  labelText: 'Địa chỉ / Khu vực',
+                  labelText: 'Địa chỉ / Khu vực *',
                   prefixIcon: Icon(Icons.location_on_outlined),
                 ),
               ),
@@ -330,7 +864,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                 controller: descController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Mô tả chi tiết phòng / yêu cầu ở ghép',
+                  labelText: 'Mô tả chi tiết phòng / tiện ích đi kèm',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -349,33 +883,55 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                     final prefs = await SharedPreferences.getInstance();
                     final myEmail = prefs.getString('user_email') ?? '0000@gmail.com';
                     final myName = myEmail.split('@').first;
+                    final price = double.tryParse(budgetController.text.trim()) ?? 1800000;
 
-                    final newRoom = {
-                      'title': titleController.text.trim(),
-                      'address': locationController.text.trim(),
-                      'pricePerMonth': double.tryParse(budgetController.text.trim()) ?? 1800000,
-                      'landlordName': myName,
-                      'landlordPhone': phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : '0988 123 456',
-                      'authorEmail': myEmail,
-                      'universityNear': 'ICTU',
-                      'distance': 'Gần cổng trường',
-                      'areaM2': 22,
-                      'description': descController.text.trim().isNotEmpty
-                          ? descController.text.trim()
-                          : 'Phòng khép kín sạch sẽ, gần trường, an ninh tốt.',
-                      'amenities': ['Wifi', 'Nóng lạnh', 'Giờ tự do'],
-                      'images': [
+                    final newRoom = RoomListing(
+                      id: 'room_custom_${DateTime.now().millisecondsSinceEpoch}',
+                      title: titleController.text.trim(),
+                      address: locationController.text.trim().isNotEmpty ? locationController.text.trim() : 'Gần trường ICTU',
+                      universityNear: 'ICTU',
+                      distance: 'Gần cổng trường',
+                      pricePerMonth: price,
+                      deposit: price,
+                      areaM2: 24,
+                      vacantRooms: 1,
+                      totalRooms: 6,
+                      roomType: 'Phòng khép kín',
+                      floor: 'Tầng 2',
+                      moveInDate: 'Vào ở ngay',
+                      images: [
                         'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800',
                       ],
-                    };
+                      amenities: ['Wifi', 'Nóng lạnh', 'Giờ tự do'],
+                      landlordName: myName,
+                      landlordPhone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : '0988 123 456',
+                      authorEmail: myEmail,
+                      electricityRate: 3500,
+                      waterRate: 25000,
+                      rating: 5.0,
+                      reviewsCount: 1,
+                      description: descController.text.trim().isNotEmpty
+                          ? descController.text.trim()
+                          : 'Phòng khép kín sạch sẽ, gần trường, an ninh tốt.',
+                      isAvailable: true,
+                      genderPreference: 'Tất cả',
+                    );
+
+                    setState(() {
+                      _allRooms.insert(0, newRoom);
+                      _applyFilter();
+                    });
+
+                    final customRooms = prefs.getStringList('my_room_listings') ?? [];
+                    customRooms.insert(0, jsonEncode(newRoom.toJson()));
+                    await prefs.setStringList('my_room_listings', customRooms);
 
                     try {
                       await http.post(
                         Uri.parse(ApiConfig.rooms),
                         headers: {'Content-Type': 'application/json; charset=utf-8'},
-                        body: jsonEncode(newRoom),
+                        body: jsonEncode(newRoom.toJson()),
                       );
-                      await _fetchRooms();
                     } catch (e) {
                       debugPrint('Lỗi đăng tin phòng: $e');
                     }
@@ -386,8 +942,9 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Đã đăng tin thành công trên hệ thống! 🎉'),
+                          content: Text('🎉 Đã đăng tin phòng trọ thành công! Tin của bạn hiển thị ở đầu danh sách.'),
                           backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
                         ),
                       );
                     }
@@ -408,16 +965,17 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: isDesktop
-          ? null
-          : FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              icon: const Icon(Icons.post_add_rounded),
-              label: const Text('Đăng Tin Tìm Trọ', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: _showCreatePostDialog,
-            ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        icon: Icon(_viewMode == 0 ? Icons.person_add_rounded : Icons.add_home_work_rounded),
+        label: Text(
+          _viewMode == 0 ? 'Đăng Tìm Bạn Ở Ghép' : 'Đăng Tin Phòng Trọ',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        onPressed: _showCreatePostDialog,
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -425,10 +983,10 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             child: Column(
               children: [
                 // 1. THANH HEADER
-                if (!isDesktop) _buildHeader(),
+                _buildHeader(isDesktop),
 
                 // 2. Ô TÌM KIẾM
-                _buildSearchBar(),
+                _buildSearchBar(isDesktop),
 
                 // 3. SEGMENTED TABS (BẠN Ở GHÉP vs PHÒNG TRỌ)
                 _buildSegmentedTab(),
@@ -454,9 +1012,9 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isDesktop) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+      padding: EdgeInsets.fromLTRB(18, isDesktop ? 16 : 14, 18, isDesktop ? 14 : 10),
       color: Colors.white,
       child: Row(
         children: [
@@ -495,6 +1053,24 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
               ],
             ),
           ),
+          if (isDesktop) ...[
+            ElevatedButton.icon(
+              onPressed: _showCreatePostDialog,
+              icon: Icon(_viewMode == 0 ? Icons.person_add_rounded : Icons.add_home_work_rounded, size: 18),
+              label: Text(
+                _viewMode == 0 ? 'Đăng Tìm Bạn Ở Ghép' : 'Đăng Tin Phòng Trọ',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             tooltip: 'Làm mới',
@@ -508,38 +1084,63 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(bool isDesktop) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (_) => setState(() => _applyFilter()),
-          decoration: InputDecoration(
-            hintText: _viewMode == 0
-                ? 'Tìm kiếm theo tên tài khoản, ngành học, trường...'
-                : 'Tìm kiếm phòng trọ theo địa chỉ, tiêu đề...',
-            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() => _applyFilter());
-                    },
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() => _applyFilter()),
+                decoration: InputDecoration(
+                  hintText: _viewMode == 0
+                      ? 'Tìm kiếm theo tên tài khoản, ngành học, trường...'
+                      : 'Tìm kiếm phòng trọ theo địa chỉ, tiêu đề...',
+                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _applyFilter());
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: _showCreatePostDialog,
+            icon: Icon(
+              _viewMode == 0 ? Icons.person_add_rounded : Icons.add_home_work_rounded,
+              size: 18,
+            ),
+            label: Text(
+              _viewMode == 0 ? 'Đăng Tin Ở Ghép' : 'Đăng Tin Trọ',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 18 : 12, vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -782,7 +1383,24 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const VerifiedBadge(text: "Người dùng thực"),
+                          if (user.email.toLowerCase() == _userEmail.toLowerCase())
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star_rounded, size: 12, color: Colors.white),
+                                  SizedBox(width: 3),
+                                  Text('Bài của bạn', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            )
+                          else
+                            const VerifiedBadge(text: "Người dùng thực"),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -823,6 +1441,14 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             // NÚT HÀNH ĐỘNG
             Row(
               children: [
+                if (user.email.toLowerCase() == _userEmail.toLowerCase()) ...[
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                    tooltip: 'Xóa bài đăng của bạn',
+                    onPressed: () => _deleteUserPost(user),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 // NÚT THÍCH HỒ SƠ ĐỂ GHÉP ĐÔI (GỌI API SWIPES THỰC TẾ)
                 Tooltip(
                   message: 'Thả tim ghép đôi (Match)',
@@ -945,9 +1571,25 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    room.title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          room.title,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                      ),
+                      if (room.authorEmail.toLowerCase() == _userEmail.toLowerCase() || room.id.startsWith('room_custom_'))
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('Phòng của bạn', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
                   ),
                 ),
                 Container(
@@ -989,6 +1631,12 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                   style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
                 const Spacer(),
+                if (room.authorEmail.toLowerCase() == _userEmail.toLowerCase() || room.id.startsWith('room_custom_'))
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                    tooltip: 'Xóa bài đăng phòng',
+                    onPressed: () => _deleteRoomPost(room),
+                  ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Colors.white),
                   label: const Text('Nhắn Tin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
