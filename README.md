@@ -1,10 +1,12 @@
-# 🥥 COCO App - Campus Living & Student Ecosystem
+# 🥥 COCO App - Campus Living & Student Ecosystem (Full-Stack)
 
-> **Nền tảng hệ sinh thái toàn diện dành cho sinh viên đại học:** Tìm trọ uy tín, kết nối bạn cùng phòng lý tưởng và giao lưu học tập / đồ án.
+> **Hệ sinh thái toàn diện dành cho sinh viên đại học:** Tìm trọ uy tín, kết nối bạn cùng phòng lý tưởng và giao lưu học tập / đồ án. Tích hợp đầy đủ cả **Frontend Flutter** và **Backend ASP.NET Core Web API (.NET 10)**.
 
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=c-sharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![Cross-Platform](https://img.shields.io/badge/Platforms-Web%20%7C%20Android%20%7C%20iOS%20%7C%20Desktop-4CAF50?style=for-the-badge)](https://flutter.dev)
+[![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](http://localhost:5000/swagger)
 
 ---
 
@@ -12,82 +14,118 @@
 
 Sinh viên đại học thường xuyên đối mặt với các khó khăn: tìm phòng trọ bị lừa đảo hoặc chi phí môi giới cao, xung đột lối sống với bạn cùng phòng ngẫu nhiên, và thiếu kênh kết nối học tập hiệu quả.
 
-**COCO App** ra đời nhằm giải quyết triệt để các vấn đề trên với mô hình “All-in-one”:
-1. **Tìm kiếm & đặt lịch xem phòng trọ sinh viên đã xác thực 100%**, minh bạch thông tin và không qua trung gian.
-2. **Thuật toán ghép đôi bạn cùng phòng (AI / Lifestyle Matching)** dựa trên thói quen thức khuya/dậy sớm, độ sạch sẽ, ngân sách và sở thích.
-3. **Góc học tập (Study Hub)** giúp tạo nhóm học theo môn, tìm đồng đội làm đồ án tốt nghiệp (Capstone Project), trao đổi tài liệu.
-4. **Nhắn tin trực tiếp (Real-time Chat)** trao đổi nhanh chóng, bảo mật giữa sinh viên, bạn cùng phòng tiềm năng và chủ trọ.
+**COCO App** là giải pháp "All-in-one" hoàn chỉnh kết hợp sức mạnh giao diện đa nền tảng **Flutter** cùng hệ thống Backend **ASP.NET Core Web API** chuẩn doanh nghiệp:
+1. **Tìm kiếm & đặt lịch xem phòng trọ xác thực 100%**: Minh bạch giá cả, hình ảnh thực tế, tiện nghi và không qua môi giới trung gian.
+2. **Thuật toán ghép đôi bạn cùng phòng (AI / Lifestyle Matching)**: Quẹt thẻ hồ sơ (Like/Pass), tính điểm tương thích (% Compatibility) dựa trên giờ giấc sinh hoạt, tính cách và ngân sách.
+3. **Góc học tập (Study Hub)**: Đăng tin tìm bạn làm đồ án chuyên ngành (Capstone Project), học nhóm môn học, luyện thi TOEIC.
+4. **Nhắn tin trực tiếp & Real-time Chat**: Trao đổi thời gian thực giữa sinh viên, bạn cùng phòng tiềm năng và chủ trọ.
 
 ---
 
-## 🚀 Tính Năng Chính (Key Features)
+## 🏗️ Cấu Trúc Dự Án (Project Structure)
 
-### 1. 🏠 Phòng Trọ Sinh Viên Xác Thực (Verified Accommodations)
-- Bộ lọc nâng cao: Khu vực gần trường (Đại học FPT, Bách Khoa, Quốc Gia...), khoảng giá, diện tích, tiện ích (máy lạnh, wifi, máy giặt, bếp, ban công).
-- Xem chi tiết từng căn phòng, hình ảnh thực tế, tiện nghi và thông tin chủ nhà.
-- Đặt lịch hẹn xem phòng trực tiếp chỉ với 1 thao tác.
-
-### 2. 👥 Ghép Bạn Cùng Phòng Thông Minh (Roommate Finder)
-- Hồ sơ phong cách sống chi tiết: Thói quen ngủ (cú đêm / dậy sớm), mức độ ngăn nắp, tính cách (hướng nội / hướng ngoại), trường học và chuyên ngành.
-- Điểm tương thích (% Compatibility Score) trực quan giúp lựa chọn người bạn đồng hành phù hợp nhất.
-- Bộ lọc theo giới tính, ngân sách tối đa và phong cách sống.
-
-### 3. 📚 Campus Study Hub (Cộng Đồng Học Tập)
-- Tìm bạn cùng học theo môn học, ôn thi cuối kỳ, luyện đồ án.
-- Đăng bài tìm đồng đội Capstone (Flutter, Backend, AI, Mobile dev...).
-- Chia sẻ và tải tài liệu môn học (Slide, đề thi mẫu, tóm tắt kiến thức).
-
-### 4. 💬 Trò Chuyện & Kết Nối Trực Tiếp (Direct Chat)
-- Khung chat thời gian thực tiện lợi.
-- Đính kèm thẻ phòng hoặc gợi ý ghép đôi trực tiếp trong cuộc hội thoại.
+```text
+COCOAPP_1/
+├── backend/                       # Backend ASP.NET Core Web API (.NET 10)
+│   ├── CoCoApp.API/
+│   │   ├── Controllers/           # Auth, Rooms, Bookings, Posts, Messages, Users, Swipes
+│   │   ├── Data/                  # AppDbContext, DataSeeder (tự động seed dữ liệu mẫu)
+│   │   ├── Models/                # RoomListing, RoomBooking, StudyPost, User, Message...
+│   │   ├── Hubs/                  # ChatHub (SignalR WebSocket)
+│   │   ├── Program.cs             # Khởi tạo dịch vụ, CORS, JWT, Hybrid SQLite/SQL Server
+│   │   └── appsettings.json       # Cấu hình chuỗi kết nối và JWT Key
+│   ├── CoCoApp.API.slnx           # Solution Visual Studio
+│   └── README.md                  # Hướng dẫn chi tiết & tài liệu API Backend
+│
+├── lib/                           # Frontend Flutter Application
+│   ├── constants/                 # ApiConfig kết nối Backend
+│   ├── models/                    # Data models Flutter
+│   ├── screens/                   # Giao diện các màn hình (Tìm trọ, Đặt lịch, Ghép đôi, Study Hub...)
+│   ├── services/                  # ChatService, MatchService giao tiếp REST API
+│   ├── theme/                     # Design DNA (Colors, Typography, Widgets)
+│   └── main.dart                  # Điểm khởi chạy ứng dụng Flutter
+│
+├── chay_backend.bat               # 1-Click khởi chạy Backend .NET 10 API & mở Swagger
+├── chay_web_localhost.bat         # 1-Click khởi chạy Web App trên trình duyệt
+├── bin/                           # Mock/Proxy server hỗ trợ kiểm thử
+└── README.md                      # Tài liệu tổng quan dự án
+```
 
 ---
 
 ## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
 
+### Frontend:
 - **Framework**: Flutter 3.x (Dart 3.x)
 - **UI/UX**: Custom Design System chuẩn Design DNA (Indigo/Violet theme, Glassmorphism, Micro-interactions)
-- **State & Data Management**: Provider / Local JSON Mock Engine / REST API Architecture
-- **Automation & Media**: Python, Edge TTS, Selenium, FFmpeg (tự động quay màn hình & dựng pitch video)
+- **Platforms**: Web, Android, iOS, Windows, macOS, Linux
+
+### Backend:
+- **Nền tảng**: ASP.NET Core Web API (.NET 10.0)
+- **Ngôn ngữ**: C# 13
+- **ORM & Database**: Entity Framework Core 10 (Hỗ trợ SQLite chạy offline cục bộ & SQL Server sản xuất)
+- **Bảo mật**: JWT (JSON Web Token) Authentication, mã hóa mật khẩu `BCrypt`
+- **Real-time**: ASP.NET Core SignalR WebSocket
+- **API Documentation**: Swagger / OpenAPI trực quan hóa
 
 ---
 
-## 💻 Hướng Dẫn Cài Đặt & Chạy Ứng Dụng (Getting Started)
+## 💻 Hướng Dẫn Khởi Chạy Ứng Dụng Hoàn Chỉnh
 
-### Yêu Cầu Môi Trường:
-- Flutter SDK (>= 3.0.0)
-- Google Chrome (nếu chạy Web) hoặc Android Studio / Xcode (nếu chạy Mobile)
+### 1. Khởi chạy Backend (.NET Web API)
 
-### Các Bước Thực Hiện:
+> **Yêu cầu**: Máy tính đã cài [.NET 10 SDK](https://dotnet.microsoft.com/)
 
-1. **Clone repository về máy**:
-   ```bash
-   git clone https://github.com/longbon2210/COCOAPP_1.git
-   cd COCOAPP_1
-   ```
+**Cách 1 (Nhanh nhất trên Windows):**
+- Click đúp vào file `chay_backend.bat` ở thư mục gốc.
 
-2. **Cài đặt các thư viện phụ thuộc**:
+**Cách 2 (Sử dụng lệnh Terminal):**
+```bash
+cd backend/CoCoApp.API
+dotnet run
+```
+- Backend sẽ tự động khởi động tại: `http://localhost:5000`
+- Giao diện trực quan Swagger UI: [http://localhost:5000/swagger](http://localhost:5000/swagger)
+- *Ghi chú: Backend tự động tạo cơ sở dữ liệu SQLite cục bộ `cocoapp.db` và nạp sẵn dữ liệu mẫu thực tế, bạn không cần phải cấu hình thêm database!*
+
+---
+
+### 2. Khởi chạy Frontend (Flutter App)
+
+> **Yêu cầu**: Máy tính đã cài [Flutter SDK](https://flutter.dev) (>= 3.0.0)
+
+1. Cài đặt các thư viện phụ thuộc:
    ```bash
    flutter pub get
    ```
 
-3. **Chạy ứng dụng trên trình duyệt Web**:
+2. Chạy ứng dụng trên trình duyệt Web (Chrome):
    ```bash
    flutter run -d chrome
    ```
-   *Hoặc click đúp file `chay_web_localhost.bat` (trên Windows).*
+   *(Hoặc click đúp file `chay_web_localhost.bat`)*
 
-4. **Chạy ứng dụng trên thiết bị di động (Android / iOS)**:
+3. Chạy ứng dụng trên thiết bị di động (Android / iOS):
    ```bash
    flutter run
    ```
 
 ---
 
-## 🎬 Video & Tài Liệu Giới Thiệu (Pitch Demo)
+## 📋 Danh Sách Endpoints REST API
 
-- Dự án tích hợp kịch bản dựng video pitching tự động: `generate_pitch_video.py`
-- Video giới thiệu hoàn chỉnh: `coco_app_pitch.mp4`
+| Nhóm chức năng | Endpoint | Phương thức | Chi tiết |
+|---------------|----------|------------|---------|
+| **Xác thực** | `/api/auth/register` | `POST` | Đăng ký tài khoản sinh viên |
+| **Xác thực** | `/api/auth/login` | `POST` | Đăng nhập nhận JWT Token |
+| **Người dùng** | `/api/users` | `GET` | Danh sách sinh viên tìm bạn cùng phòng |
+| **Hồ sơ** | `/api/users/profile` | `GET`, `PUT` | Xem & cập nhật thông tin cá nhân |
+| **Phòng trọ** | `/api/rooms` | `GET`, `POST`, `DELETE` | Tra cứu, đăng tin & xóa phòng trọ |
+| **Đặt lịch** | `/api/bookings` | `GET`, `POST`, `DELETE` | Đặt lịch hẹn xem phòng với chủ trọ |
+| **Học tập** | `/api/posts` | `GET`, `POST`, `DELETE` | Đăng bài & tìm đồng đội Capstone / nhóm học |
+| **Ghép đôi** | `/api/swipes` | `POST` | Quẹt thẻ tương tác & kiểm tra tương hợp |
+| **Tin nhắn** | `/api/messages` | `GET`, `POST` | Nhắn tin trực tiếp giữa 2 người dùng |
+| **WebSocket** | `/chatHub` | `WS` | Kênh SignalR cho chat thời gian thực |
 
 ---
 

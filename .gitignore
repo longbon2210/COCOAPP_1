@@ -52,3 +52,13 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+
+# .NET Build Artifacts and Databases
+backend/**/bin/
+backend/**/obj/
+.vs/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
