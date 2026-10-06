@@ -14,7 +14,14 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <script>
+    var path = window.location.pathname;
+    if (path.indexOf('/COCOAPP_1') === 0) {
+      document.write('<base href="/COCOAPP_1/">');
+    } else {
+      document.write('<base href="/">');
+    }
+  </script>
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
