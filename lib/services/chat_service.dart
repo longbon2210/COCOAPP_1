@@ -25,13 +25,21 @@ class ChatService {
     }
   }
 
-  // Danh sách tin nhắn mới nhận real-time từ SignalR
-  final List<ChatMessage> _realtimeCache = [];
-  List<ChatMessage> get realtimeCache => List.unmodifiable(_realtimeCache);
-
   Future<String> _getMyEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('user_email') ?? '0000@gmail.com';
+  }
+
+  Future<String> _getMyName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_name') ?? 'Tôi';
+  }
+
+  String _convoKey(String email1, String email2) {
+    final e1 = email1.trim().toLowerCase();
+    final e2 = email2.trim().toLowerCase();
+    final list = [e1, e2]..sort();
+    return 'coco_chat_${list[0]}_${list[1]}';
   }
 
   // Khởi tạo kết nối Real-time SignalR tới ChatHub
@@ -99,39 +107,52 @@ class ChatService {
         map = jsonDecode(jsonEncode(raw));
       }
 
-      final myEmail = await _getMyEmail();
-      final sEmail = (map['senderEmail'] ?? map['SenderEmail'] ?? '').toString();
+      final myEmail = (await _getMyEmail()).toLowerCase();
+      final sEmail = (map['senderEmail'] ?? map['SenderEmail'] ?? '').toString().toLowerCase();
+      final rEmail = (map['receiverEmail'] ?? map['ReceiverEmail'] ?? '').toString().toLowerCase();
       final text = (map['text'] ?? map['Text'] ?? '').toString();
       final id = (map['id'] ?? map['Id'] ?? 'msg_${DateTime.now().millisecondsSinceEpoch}').toString();
-      final isMe = sEmail.toLowerCase() == myEmail.toLowerCase();
+      final timestamp = DateTime.tryParse((map['timestamp'] ?? map['Timestamp'] ?? '').toString()) ?? DateTime.now();
 
-      final newMsg = ChatMessage(
+      // Chỉ xử lý tin nhắn liên quan đến tài khoản hiện tại
+      if (sEmail != myEmail && rEmail != myEmail) {
+        return;
+      }
+
+      final isMe = sEmail == myEmail;
+      final partnerEmail = isMe ? rEmail : sEmail;
+
+      final incomingMsg = ChatMessage(
         id: id,
         senderId: isMe ? 0 : 1,
         receiverId: isMe ? 1 : 0,
+        senderEmail: sEmail,
+        receiverEmail: rEmail,
+        senderName: (map['senderName'] ?? map['SenderName'] ?? '').toString(),
+        receiverName: (map['receiverName'] ?? map['ReceiverName'] ?? '').toString(),
         text: text,
-        timestamp: DateTime.tryParse((map['timestamp'] ?? map['Timestamp'] ?? '').toString()) ?? DateTime.now(),
+        timestamp: timestamp,
         isMe: isMe,
         isRead: isMe,
       );
 
-      if (!_realtimeCache.any((m) => m.id == newMsg.id)) {
-        _realtimeCache.add(newMsg);
-      }
+      // Lưu ngay vào SharedPreferences
+      await _saveMessageLocally(myEmail, partnerEmail, incomingMsg);
       _notify();
     } catch (e) {
       debugPrint('[SignalR] Lỗi phân giải tin nhắn: $e');
     }
   }
 
-  void _onReceiveMessage(List<Object?>? args) {
+  void _onReceiveMessage(List<Object?>? args) async {
     if (args == null || args.length < 2) return;
     try {
       final senderId = int.tryParse(args[0].toString()) ?? 1;
       final content = args[1].toString();
       final sentAt = args.length > 2 ? (DateTime.tryParse(args[2].toString()) ?? DateTime.now()) : DateTime.now();
+      final myEmail = await _getMyEmail();
 
-      final newMsg = ChatMessage(
+      final incomingMsg = ChatMessage(
         id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
         senderId: senderId,
         receiverId: 0,
@@ -141,16 +162,41 @@ class ChatService {
         isRead: false,
       );
 
-      _realtimeCache.add(newMsg);
+      final prefs = await SharedPreferences.getInstance();
+      final partnerEmail = prefs.getString('partner_email_$senderId') ?? 'partner_$senderId@cocoapp.vn';
+      await _saveMessageLocally(myEmail, partnerEmail, incomingMsg);
       _notify();
     } catch (e) {
       debugPrint('[SignalR] Lỗi nhận tin nhắn ID: $e');
     }
   }
 
-  // Lấy lịch sử tin nhắn thực tế giữa 2 người dùng qua Server API
+  Future<void> _saveMessageLocally(String myEmail, String partnerEmail, ChatMessage msg) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _convoKey(myEmail, partnerEmail);
+    final listJson = prefs.getStringList(key) ?? [];
+
+    // Kiểm tra trùng lặp
+    bool exists = false;
+    for (final str in listJson) {
+      try {
+        final m = jsonDecode(str);
+        if (m['id'] == msg.id || (m['text'] == msg.text && (DateTime.tryParse(m['timestamp'])?.difference(msg.timestamp).inSeconds.abs() ?? 10) < 2)) {
+          exists = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!exists) {
+      listJson.add(jsonEncode(msg.toJson()));
+      await prefs.setStringList(key, listJson);
+    }
+  }
+
+  // Lấy lịch sử tin nhắn thực tế giữa 2 người dùng qua Bộ nhớ cục bộ & Server API
   Future<List<ChatMessage>> getMessages(dynamic partnerOrId, {String? partnerEmail}) async {
-    final myEmail = await _getMyEmail();
+    final myEmail = (await _getMyEmail()).toLowerCase();
     String targetEmail = partnerEmail ?? '';
 
     if (targetEmail.isEmpty && partnerOrId is UserProfile) {
@@ -166,61 +212,95 @@ class ChatService {
       return [];
     }
 
+    targetEmail = targetEmail.toLowerCase();
+    final key = _convoKey(myEmail, targetEmail);
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. Đọc tin nhắn từ SharedPreferences trước
+    final localListJson = prefs.getStringList(key) ?? [];
+    final List<ChatMessage> localMessages = [];
+    for (final str in localListJson) {
+      try {
+        localMessages.add(ChatMessage.fromJson(jsonDecode(str)));
+      } catch (_) {}
+    }
+
+    // 2. Thử đồng bộ từ Server API
     try {
       final url = Uri.parse('${ApiConfig.messages}?user1=${Uri.encodeComponent(myEmail)}&user2=${Uri.encodeComponent(targetEmail)}');
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final res = await http.get(url).timeout(const Duration(seconds: 4));
 
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
-        final fetched = list.map((item) {
-          final sEmail = (item['senderEmail'] ?? '').toString();
-          final isMe = sEmail.toLowerCase() == myEmail.toLowerCase();
-          return ChatMessage(
+        for (final item in list) {
+          final sEmail = (item['senderEmail'] ?? '').toString().toLowerCase();
+          final isMe = sEmail == myEmail;
+          final msg = ChatMessage(
             id: item['id']?.toString() ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
             senderId: isMe ? 0 : 1,
             receiverId: isMe ? 1 : 0,
+            senderEmail: sEmail,
+            receiverEmail: (item['receiverEmail'] ?? '').toString().toLowerCase(),
+            senderName: (item['senderName'] ?? '').toString(),
+            receiverName: (item['receiverName'] ?? '').toString(),
             text: item['text']?.toString() ?? '',
             timestamp: DateTime.tryParse(item['timestamp']?.toString() ?? '') ?? DateTime.now(),
             isMe: isMe,
             isRead: item['isRead'] == true,
           );
-        }).toList();
 
-        // Gộp cùng các tin nhắn nhận tức thời qua SignalR
-        for (final rt in _realtimeCache) {
-          if (!fetched.any((m) => m.id == rt.id || (m.text == rt.text && m.timestamp.difference(rt.timestamp).inSeconds.abs() < 2))) {
-            fetched.add(rt);
+          if (!localMessages.any((m) => m.id == msg.id || (m.text == msg.text && m.timestamp.difference(msg.timestamp).inSeconds.abs() < 2))) {
+            localMessages.add(msg);
           }
         }
-        fetched.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        return fetched;
+
+        // Cập nhật lại cache cục bộ
+        localMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        await prefs.setStringList(key, localMessages.map((m) => jsonEncode(m.toJson())).toList());
       }
     } catch (e) {
       debugPrint('Lỗi tải tin nhắn từ server: $e');
     }
 
-    return _realtimeCache;
+    localMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return localMessages;
   }
 
   // Gửi tin nhắn thực tế tới người dùng khác qua SignalR và Server API
-  Future<ChatMessage?> sendMessage({
+  Future<ChatMessage> sendMessage({
     required UserProfile partner,
     required String text,
   }) async {
     final myEmail = await _getMyEmail();
-    final url = Uri.parse(ApiConfig.messages);
-
-    // Lưu cache email của partner
+    final myName = await _getMyName();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('partner_email_${partner.id}', partner.email);
 
-    // Nếu SignalR đang kết nối, gửi qua Hub trước để tối ưu độ trễ
+    final newMsg = ChatMessage(
+      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      senderId: 0,
+      receiverId: partner.id,
+      senderEmail: myEmail,
+      receiverEmail: partner.email,
+      senderName: myName,
+      receiverName: partner.name,
+      text: text,
+      timestamp: DateTime.now(),
+      isMe: true,
+      isRead: true,
+    );
+
+    // 1. Lưu ngay vào SharedPreferences (Optimistic Local UI Update)
+    await _saveMessageLocally(myEmail, partner.email, newMsg);
+    _notify();
+
+    // 2. Gửi qua SignalR Hub nếu đang kết nối
     if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
       try {
         await _hubConnection!.invoke('SendChatMessage', args: [
           myEmail,
           partner.email,
-          myEmail.split('@').first,
+          myName,
           partner.name,
           text,
         ]);
@@ -229,67 +309,66 @@ class ChatService {
       }
     }
 
+    // 3. Gửi qua REST API
     try {
-      final res = await http.post(
+      final url = Uri.parse(ApiConfig.messages);
+      await http.post(
         url,
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: jsonEncode({
+          'id': newMsg.id,
           'senderEmail': myEmail,
           'receiverEmail': partner.email,
-          'senderName': myEmail.split('@').first,
+          'senderName': myName,
           'receiverName': partner.name,
           'text': text,
+          'timestamp': newMsg.timestamp.toIso8601String(),
         }),
-      ).timeout(const Duration(seconds: 8));
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final data = jsonDecode(res.body);
-        final newMsg = ChatMessage(
-          id: data['id']?.toString() ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
-          senderId: 0,
-          receiverId: partner.id,
-          text: text,
-          timestamp: DateTime.now(),
-          isMe: true,
-          isRead: true,
-        );
-        _realtimeCache.add(newMsg);
-        _notify();
-        return newMsg;
-      }
+      ).timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('Lỗi gửi tin nhắn qua REST API: $e');
     }
 
-    // Local instant feedback nếu server bận
-    final localMsg = ChatMessage(
-      id: 'local_msg_${DateTime.now().millisecondsSinceEpoch}',
-      senderId: 0,
-      receiverId: partner.id,
-      text: text,
-      timestamp: DateTime.now(),
-      isMe: true,
-      isRead: true,
-    );
-    _realtimeCache.add(localMsg);
-    _notify();
-    return localMsg;
+    return newMsg;
   }
 
-  // Lấy tất cả tin nhắn của tôi từ Server để hiển thị danh sách cuộc trò chuyện
+  // Lấy tất cả tin nhắn của tôi từ Server & Cục bộ để hiển thị danh sách cuộc trò chuyện
   Future<List<Map<String, dynamic>>> getMyConversations() async {
-    final myEmail = await _getMyEmail();
+    final myEmail = (await _getMyEmail()).toLowerCase();
+    final prefs = await SharedPreferences.getInstance();
+    final List<Map<String, dynamic>> allMessages = [];
+
+    // 1. Quét các tin nhắn đã lưu cục bộ trong SharedPreferences
+    final allKeys = prefs.getKeys();
+    for (final key in allKeys) {
+      if (key.startsWith('coco_chat_') && key.contains(myEmail)) {
+        final listJson = prefs.getStringList(key) ?? [];
+        for (final str in listJson) {
+          try {
+            allMessages.add(jsonDecode(str));
+          } catch (_) {}
+        }
+      }
+    }
+
+    // 2. Thử lấy thêm từ Server API
     try {
       final url = Uri.parse('${ApiConfig.messages}?myEmail=${Uri.encodeComponent(myEmail)}');
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final res = await http.get(url).timeout(const Duration(seconds: 4));
 
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
-        return list.map((e) => e as Map<String, dynamic>).toList();
+        for (final item in list) {
+          final id = item['id']?.toString() ?? '';
+          if (!allMessages.any((m) => m['id'] == id)) {
+            allMessages.add(item as Map<String, dynamic>);
+          }
+        }
       }
     } catch (e) {
       debugPrint('Lỗi tải danh sách cuộc trò chuyện: $e');
     }
-    return [];
+
+    return allMessages;
   }
 }

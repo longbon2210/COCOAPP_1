@@ -46,10 +46,10 @@ class UserProfile {
     final int id = json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0;
     final String email = json['email']?.toString() ?? 'sinhvien@ictu.edu.vn';
     final String university = json['university']?.toString().isNotEmpty == true
-        ? json['university']!
+        ? json['university']!.toString()
         : 'ICTU';
     final String major = json['major']?.toString().isNotEmpty == true
-        ? json['major']!
+        ? json['major']!.toString()
         : 'Công nghệ thông tin';
 
     final avatars = [
@@ -107,9 +107,11 @@ class UserProfile {
       ['Tiếng Anh', 'Thuyết trình', 'Làm việc nhóm'],
     ];
 
-    final isSmoker = index % 4 == 0;
-    final hasPet = index % 3 == 0;
-    final budget = 1500000.0 + (index % 3) * 500000.0;
+    final isSmoker = json['isSmoker'] is bool ? json['isSmoker'] as bool : (index % 4 == 0);
+    final hasPet = json['hasPet'] is bool ? json['hasPet'] as bool : (index % 3 == 0);
+    final budget = (json['rentalBudget'] is num)
+        ? (json['rentalBudget'] as num).toDouble()
+        : (1500000.0 + (index % 3) * 500000.0);
 
     final lifestyles = [
       isSmoker ? '🚬 Có hút thuốc' : '🚭 Không hút thuốc',
@@ -119,25 +121,62 @@ class UserProfile {
       '🍳 Nấu ăn tại phòng',
     ];
 
+    // Ưu tiên thông tin thực tế từ backend/database
+    final realName = (json['name']?.toString().isNotEmpty == true)
+        ? json['name'].toString()
+        : names[index % names.length];
+
+    final realAvatar = (json['avatarUrl']?.toString().isNotEmpty == true)
+        ? json['avatarUrl'].toString()
+        : avatars[index % avatars.length];
+
+    final realBio = (json['bio']?.toString().isNotEmpty == true)
+        ? json['bio'].toString()
+        : ((json['introduction']?.toString().isNotEmpty == true)
+            ? json['introduction'].toString()
+            : 'Sinh viên chuyên ngành $major tại $university. Mục tiêu học tập chăm chỉ, lối sống tự lập, có ý thức giữ gìn vệ sinh chung.');
+
+    final realLocation = (json['roomLocation']?.toString().isNotEmpty == true)
+        ? json['roomLocation'].toString()
+        : locations[index % locations.length];
+
+    final realStatus = (json['roomStatus']?.toString().isNotEmpty == true)
+        ? json['roomStatus'].toString()
+        : roomStatuses[index % roomStatuses.length];
+
+    final realGender = (json['gender']?.toString().isNotEmpty == true)
+        ? json['gender'].toString()
+        : (index % 2 == 0 ? 'Nữ' : 'Nam');
+
+    final realGoal = (json['studyGoal']?.toString().isNotEmpty == true)
+        ? json['studyGoal'].toString()
+        : goals[index % goals.length];
+
     return UserProfile(
       id: id,
       email: email,
-      name: names[index % names.length],
+      name: realName,
       university: university,
       major: major,
-      avatarUrl: avatars[index % avatars.length],
-      bio: 'Sinh viên năm 3 chuyên ngành $major tại $university. Mục tiêu học tập chăm chỉ, lối sống tự lập, có ý thức giữ gìn vệ sinh chung.',
+      avatarUrl: realAvatar,
+      bio: realBio,
       rentalBudget: budget,
-      roomLocation: locations[index % locations.length],
-      roomStatus: roomStatuses[index % roomStatuses.length],
-      gender: index % 2 == 0 ? 'Nữ' : 'Nam',
+      roomLocation: realLocation,
+      roomStatus: realStatus,
+      gender: realGender,
       isSmoker: isSmoker,
       hasPet: hasPet,
-      studyGoal: goals[index % goals.length],
-      studySkills: skillSets[index % skillSets.length],
-      lifestyleTags: lifestyles,
-      compatibilityScore: 89 + (index * 4) % 11,
-      isOnline: index % 2 == 1,
+      studyGoal: realGoal,
+      studySkills: (json['studySkills'] is List)
+          ? (json['studySkills'] as List).map((e) => e.toString()).toList()
+          : skillSets[index % skillSets.length],
+      lifestyleTags: (json['lifestyleTags'] is List)
+          ? (json['lifestyleTags'] as List).map((e) => e.toString()).toList()
+          : lifestyles,
+      compatibilityScore: (json['compatibilityScore'] is int && (json['compatibilityScore'] as int) > 0)
+          ? json['compatibilityScore'] as int
+          : (89 + (index * 4) % 11),
+      isOnline: json['isOnline'] is bool ? json['isOnline'] as bool : (index % 2 == 1),
     );
   }
 

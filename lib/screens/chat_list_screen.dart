@@ -178,11 +178,24 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.add_comment_rounded),
+        label: const Text('Tin Nhắn Mới', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: _showStartNewChatDialog,
+      ),
       appBar: isDesktop
           ? null
           : AppBar(
               title: const Text('Tin Nhắn & Kết Nối'),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.add_comment_outlined),
+                  tooltip: 'Bắt đầu trò chuyện mới',
+                  onPressed: _showStartNewChatDialog,
+                ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: 'Làm mới',
@@ -518,6 +531,148 @@ class _ChatListScreenState extends State<ChatListScreen> {
         builder: (context) => ChatDetailScreen(partner: partner),
       ),
     ).then((_) => _loadData());
+  }
+
+  void _showStartNewChatDialog() {
+    String searchFilter = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final availableUsers = _cachedUsers.where((u) {
+            if (searchFilter.isEmpty) return true;
+            final q = searchFilter.toLowerCase();
+            return u.name.toLowerCase().contains(q) ||
+                u.university.toLowerCase().contains(q) ||
+                u.major.toLowerCase().contains(q) ||
+                u.email.toLowerCase().contains(q);
+          }).toList();
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.82,
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.forum_rounded, color: AppColors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bắt Đầu Cuộc Trò Chuyện',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                          Text(
+                            'Chọn sinh viên để kết nối và trao đổi ngay',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  onChanged: (val) => setSheetState(() => searchFilter = val.trim()),
+                  decoration: InputDecoration(
+                    hintText: 'Tìm theo tên, ngành, trường học...',
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: availableUsers.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Không tìm thấy sinh viên phù hợp.',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: availableUsers.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final user = availableUsers[index];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              leading: CircleAvatar(
+                                radius: 24,
+                                backgroundImage: NetworkImage(user.avatarUrl),
+                              ),
+                              title: Text(
+                                user.name,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              subtitle: Text(
+                                '${user.major} • ${user.university}',
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _openChat(user);
+                                },
+                                child: const Text('Nhắn tin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   String _formatDate(DateTime dt) {
