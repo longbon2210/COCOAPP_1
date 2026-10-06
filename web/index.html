@@ -15,6 +15,12 @@
     the `--base-href` argument provided to `flutter build`.
   -->
   <base href="$FLUTTER_BASE_HREF">
+  <script>
+    if (window.location.hostname.indexOf('vercel.app') !== -1 || window.location.pathname === '/' || window.location.pathname === '') {
+      var base = document.querySelector('base');
+      if (base) base.setAttribute('href', '/');
+    }
+  </script>
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
