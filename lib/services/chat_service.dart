@@ -120,23 +120,29 @@ class ChatService {
       }
 
       final isMe = sEmail == myEmail;
-      final partnerEmail = isMe ? rEmail : sEmail;
+      if (isMe) {
+        // Người gửi đã lưu tin nhắn cục bộ (optimistic update) khi bấm gửi trong sendMessage()
+        // Bỏ qua để tránh bị hiển thị 2 lần bong bóng chat cho người gửi
+        return;
+      }
+
+      final partnerEmail = sEmail;
 
       final incomingMsg = ChatMessage(
         id: id,
-        senderId: isMe ? 0 : 1,
-        receiverId: isMe ? 1 : 0,
+        senderId: 1,
+        receiverId: 0,
         senderEmail: sEmail,
         receiverEmail: rEmail,
         senderName: (map['senderName'] ?? map['SenderName'] ?? '').toString(),
         receiverName: (map['receiverName'] ?? map['ReceiverName'] ?? '').toString(),
         text: text,
         timestamp: timestamp,
-        isMe: isMe,
-        isRead: isMe,
+        isMe: false,
+        isRead: false,
       );
 
-      // Lưu ngay vào SharedPreferences
+      // Lưu ngay vào SharedPreferences với cơ chế chống trùng lặp
       await _saveMessageLocally(myEmail, partnerEmail, incomingMsg);
       _notify();
     } catch (e) {
@@ -176,12 +182,16 @@ class ChatService {
     final key = _convoKey(myEmail, partnerEmail);
     final listJson = prefs.getStringList(key) ?? [];
 
-    // Kiểm tra trùng lặp
+    // Kiểm tra trùng lặp chặt chẽ theo ID hoặc nội dung + thời gian tương đồng
     bool exists = false;
     for (final str in listJson) {
       try {
         final m = jsonDecode(str);
-        if (m['id'] == msg.id || (m['text'] == msg.text && (DateTime.tryParse(m['timestamp'])?.difference(msg.timestamp).inSeconds.abs() ?? 10) < 2)) {
+        final sameId = m['id'] != null && m['id'].toString() == msg.id;
+        final sameContent = m['text'] == msg.text &&
+            (m['senderEmail']?.toString().toLowerCase() == msg.senderEmail.toLowerCase()) &&
+            (DateTime.tryParse(m['timestamp'].toString())?.difference(msg.timestamp).inSeconds.abs() ?? 10) < 4;
+        if (sameId || sameContent) {
           exists = true;
           break;
         }
@@ -227,8 +237,14 @@ class ChatService {
 
     // 2. Thử đồng bộ từ Server API
     try {
+      final token = prefs.getString('jwt_token') ?? '';
       final url = Uri.parse('${ApiConfig.messages}?user1=${Uri.encodeComponent(myEmail)}&user2=${Uri.encodeComponent(targetEmail)}');
-      final res = await http.get(url).timeout(const Duration(seconds: 4));
+      final res = await http.get(
+        url,
+        headers: {
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 4));
 
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
@@ -249,7 +265,7 @@ class ChatService {
             isRead: item['isRead'] == true,
           );
 
-          if (!localMessages.any((m) => m.id == msg.id || (m.text == msg.text && m.timestamp.difference(msg.timestamp).inSeconds.abs() < 2))) {
+          if (!localMessages.any((m) => m.id == msg.id || (m.text == msg.text && m.senderEmail == msg.senderEmail && m.timestamp.difference(msg.timestamp).inSeconds.abs() < 4))) {
             localMessages.add(msg);
           }
         }
@@ -266,7 +282,7 @@ class ChatService {
     return localMessages;
   }
 
-  // Gửi tin nhắn thực tế tới người dùng khác qua SignalR và Server API
+  // Gửi tin nhắn thực tế tới người dùng khác: gửi REST API đơn nhất (Server lưu và phát SignalR)
   Future<ChatMessage> sendMessage({
     required UserProfile partner,
     required String text,
@@ -277,7 +293,7 @@ class ChatService {
     await prefs.setString('partner_email_${partner.id}', partner.email);
 
     final newMsg = ChatMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'msg_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}',
       senderId: 0,
       receiverId: partner.id,
       senderEmail: myEmail,
@@ -294,27 +310,17 @@ class ChatService {
     await _saveMessageLocally(myEmail, partner.email, newMsg);
     _notify();
 
-    // 2. Gửi qua SignalR Hub nếu đang kết nối
-    if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
-      try {
-        await _hubConnection!.invoke('SendChatMessage', args: [
-          myEmail,
-          partner.email,
-          myName,
-          partner.name,
-          text,
-        ]);
-      } catch (hubErr) {
-        debugPrint('[SignalR] Invoke SendChatMessage lỗi: $hubErr. Đang gửi qua REST API...');
-      }
-    }
-
-    // 3. Gửi qua REST API
+    // 2. Gửi qua REST API (Kênh lưu trữ chuẩn duy nhất - Backend sẽ lưu DB và tự động phát SignalR tới người nhận)
+    bool sentSuccess = false;
+    final token = prefs.getString('jwt_token') ?? '';
     try {
       final url = Uri.parse(ApiConfig.messages);
-      await http.post(
+      final res = await http.post(
         url,
-        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'id': newMsg.id,
           'senderEmail': myEmail,
@@ -325,8 +331,26 @@ class ChatService {
           'timestamp': newMsg.timestamp.toIso8601String(),
         }),
       ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        sentSuccess = true;
+      }
     } catch (e) {
       debugPrint('Lỗi gửi tin nhắn qua REST API: $e');
+    }
+
+    // 3. Dự phòng: chỉ gọi SignalR invoke trực tiếp nếu REST API không thành công
+    if (!sentSuccess && _hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
+      try {
+        await _hubConnection!.invoke('SendChatMessage', args: [
+          myEmail,
+          partner.email,
+          myName,
+          partner.name,
+          text,
+        ]);
+      } catch (hubErr) {
+        debugPrint('[SignalR] Dự phòng SendChatMessage lỗi: $hubErr');
+      }
     }
 
     return newMsg;
@@ -353,8 +377,14 @@ class ChatService {
 
     // 2. Thử lấy thêm từ Server API
     try {
+      final token = prefs.getString('jwt_token') ?? '';
       final url = Uri.parse('${ApiConfig.messages}?myEmail=${Uri.encodeComponent(myEmail)}');
-      final res = await http.get(url).timeout(const Duration(seconds: 4));
+      final res = await http.get(
+        url,
+        headers: {
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 4));
 
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);

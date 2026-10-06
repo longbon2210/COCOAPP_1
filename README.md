@@ -15,8 +15,8 @@
 Sinh viên đại học thường xuyên đối mặt với các khó khăn: tìm phòng trọ bị lừa đảo hoặc chi phí môi giới cao, xung đột lối sống với bạn cùng phòng ngẫu nhiên, và thiếu kênh kết nối học tập hiệu quả.
 
 **COCO App** là giải pháp "All-in-one" hoàn chỉnh kết hợp sức mạnh giao diện đa nền tảng **Flutter** cùng hệ thống Backend **ASP.NET Core Web API** chuẩn doanh nghiệp:
-1. **Tìm kiếm & đặt lịch xem phòng trọ xác thực 100%**: Minh bạch giá cả, hình ảnh thực tế, tiện nghi và không qua môi giới trung gian.
-2. **Thuật toán ghép đôi bạn cùng phòng (AI / Lifestyle Matching)**: Quẹt thẻ hồ sơ (Like/Pass), tính điểm tương thích (% Compatibility) dựa trên giờ giấc sinh hoạt, tính cách và ngân sách.
+1. **Tìm kiếm & đặt lịch xem phòng trọ sinh viên**: Minh bạch giá cả, hình ảnh thực tế, tiện nghi và liên hệ trực tiếp người đăng.
+2. **Thuật toán ghép đôi bạn cùng phòng (Lifestyle Matching)**: Quẹt thẻ hồ sơ (Like/Pass), tính điểm tương thích (% Compatibility) dựa trên giờ giấc sinh hoạt, tính cách và ngân sách.
 3. **Góc học tập (Study Hub)**: Đăng tin tìm bạn làm đồ án chuyên ngành (Capstone Project), học nhóm môn học, luyện thi TOEIC.
 4. **Nhắn tin trực tiếp & Real-time Chat**: Trao đổi thời gian thực giữa sinh viên, bạn cùng phòng tiềm năng và chủ trọ.
 

@@ -1400,7 +1400,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                               ),
                             )
                           else
-                            const VerifiedBadge(text: "Người dùng thực"),
+                            const VerifiedBadge(text: "Thành viên cộng đồng"),
                         ],
                       ),
                       const SizedBox(height: 4),

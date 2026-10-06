@@ -1,4 +1,5 @@
 using CocoApp.API.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -6,7 +7,6 @@ using System.Security.Claims;
 namespace CocoApp.API.Controllers
 {
 	[Route("api/[controller]")]
-	[Route("api/user")]
 	[ApiController]
 	public class UsersController : ControllerBase
 	{
@@ -50,11 +50,13 @@ namespace CocoApp.API.Controllers
 			return Ok(result);
 		}
 
-		// GET: api/users/profile HOẶC api/user/profile
+		// GET: api/users/profile
+		[Authorize]
 		[HttpGet("profile")]
 		public IActionResult GetProfile([FromQuery] string? email)
 		{
 			var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			var userEmailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
 			Models.User? user = null;
 
 			if (!string.IsNullOrEmpty(userIdString) && int.TryParse(userIdString, out int userId))
@@ -62,14 +64,14 @@ namespace CocoApp.API.Controllers
 				user = _context.Users.FirstOrDefault(u => u.Id == userId);
 			}
 
+			if (user == null && !string.IsNullOrEmpty(userEmailClaim))
+			{
+				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == userEmailClaim.Trim().ToLower());
+			}
+
 			if (user == null && !string.IsNullOrWhiteSpace(email))
 			{
 				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == email.Trim().ToLower());
-			}
-
-			if (user == null)
-			{
-				user = _context.Users.FirstOrDefault();
 			}
 
 			if (user == null) return NotFound(new { error = "Không tìm thấy hồ sơ người dùng" });
@@ -121,11 +123,13 @@ namespace CocoApp.API.Controllers
 			public string? Email { get; set; }
 		}
 
-		// PUT: api/users/profile HOẶC api/user/profile
+		// PUT: api/users/profile
+		[Authorize]
 		[HttpPut("profile")]
 		public IActionResult UpdateProfile([FromBody] UpdateProfileDto request)
 		{
 			var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			var userEmailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
 			Models.User? user = null;
 
 			if (!string.IsNullOrEmpty(userIdString) && int.TryParse(userIdString, out int userId))
@@ -133,17 +137,17 @@ namespace CocoApp.API.Controllers
 				user = _context.Users.FirstOrDefault(u => u.Id == userId);
 			}
 
+			if (user == null && !string.IsNullOrEmpty(userEmailClaim))
+			{
+				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == userEmailClaim.Trim().ToLower());
+			}
+
 			if (user == null && !string.IsNullOrWhiteSpace(request.Email))
 			{
 				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == request.Email.Trim().ToLower());
 			}
 
-			if (user == null)
-			{
-				user = _context.Users.FirstOrDefault();
-			}
-
-			if (user == null) return NotFound(new { error = "Người dùng không tồn tại!" });
+			if (user == null) return NotFound(new { error = "Người dùng không tồn tại hoặc chưa xác thực!" });
 
 			if (!string.IsNullOrEmpty(request.Name)) user.Name = request.Name;
 			if (!string.IsNullOrEmpty(request.AvatarUrl)) user.AvatarUrl = request.AvatarUrl;

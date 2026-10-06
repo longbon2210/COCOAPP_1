@@ -115,13 +115,19 @@ namespace CocoApp.API.Controllers
 
 			// 3. Quy trình tạo thẻ VIP (JWT Token)
 			var tokenHandler = new JwtSecurityTokenHandler();
-			var jwtKey = _configuration["Jwt:Key"] ?? "ChuoiBiMatSieuCapVipPro1234567890!@#$";
+			var jwtKey = _configuration["Jwt:Key"] ?? "MotChuoiKyTuBiMatRatDaiVaKhoDoanChoDuAnCocoApp123!@#";
 			var key = Encoding.UTF8.GetBytes(jwtKey);
+
+			var claims = new List<Claim>
+			{
+				new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+				new Claim(ClaimTypes.Email, user.Email ?? ""),
+				new Claim(ClaimTypes.Name, user.Name ?? "")
+			};
 
 			var tokenDescriptor = new SecurityTokenDescriptor
 			{
-				// Nhét ID của người dùng vào thẻ
-				Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()) }),
+				Subject = new ClaimsIdentity(claims),
 				// Hạn sử dụng 30 ngày
 				Expires = DateTime.UtcNow.AddDays(30),
 				// Chữ ký bảo mật

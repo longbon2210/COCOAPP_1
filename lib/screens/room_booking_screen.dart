@@ -2057,7 +2057,7 @@ class _RoomBookingScreenState extends State<RoomBookingScreen> {
                       Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 16),
                       SizedBox(width: 6),
                       Text(
-                        '100% Phòng Trọ Chính Chủ Xác Thực • Đại Học ICTU Thái Nguyên',
+                        'Phòng Trọ Dành Cho Sinh Viên • Đại Học ICTU Thái Nguyên',
                         style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -2437,7 +2437,7 @@ class _RoomBookingScreenState extends State<RoomBookingScreen> {
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               const SizedBox(width: 6),
-                              const VerifiedBadge(text: "Chính chủ"),
+                              const VerifiedBadge(text: "Người đăng"),
                             ],
                           ),
                           Text(

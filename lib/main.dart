@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -192,89 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       debugPrint("Lỗi kết nối máy chủ đăng nhập: $e");
 
-      // Fallback phiên Web trực tuyến khi trình duyệt chặn HTTP Mixed Content
-      final errStr = e.toString();
-      final isBlockedOnWeb = errStr.contains('Failed to fetch') ||
-          errStr.contains('ClientException') ||
-          errStr.contains('XMLHttpRequest') ||
-          errStr.contains('Connection refused') ||
-          errStr.contains('SocketException');
-
-      if (kIsWeb && isBlockedOnWeb) {
-        final prefs = await SharedPreferences.getInstance();
-
-        // Kiểm tra xem tài khoản này đã được đăng ký trước đó trên thiết bị chưa
-        final rawReg = prefs.getString('reg_user_${targetEmail.toLowerCase()}');
-        if (rawReg != null) {
-          try {
-            final regData = jsonDecode(rawReg);
-            final savedPass = regData['password']?.toString() ?? '';
-            if (savedPass.isNotEmpty && savedPass != _passwordController.text.trim()) {
-              const wrongPassMsg = 'Mật khẩu không chính xác. Vui lòng thử lại!';
-              setState(() {
-                _resultMessage = wrongPassMsg;
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(wrongPassMsg),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-              return;
-            }
-            if (regData['name'] != null) await prefs.setString('user_name', regData['name'].toString());
-            if (regData['university'] != null) await prefs.setString('user_university', regData['university'].toString());
-            if (regData['major'] != null) await prefs.setString('user_major', regData['major'].toString());
-          } catch (_) {}
-        } else {
-          // Tự động gán tên hiển thị lịch sự theo email
-          final existingName = prefs.getString('user_name');
-          if (existingName == null || existingName.isEmpty) {
-            await prefs.setString('user_name', targetEmail.split('@').first);
-          }
-        }
-
-        await prefs.setString('jwt_token', 'online_web_session_${DateTime.now().millisecondsSinceEpoch}');
-        await prefs.setString('user_email', targetEmail.isNotEmpty ? targetEmail : '0000@gmail.com');
-        final int userId = (targetEmail == '0000@gmail.com') ? 10 : 4;
-        await prefs.setInt('user_id', userId);
-
-        if (_rememberMe && targetEmail.isNotEmpty) {
-          await prefs.setString('remembered_email', targetEmail);
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.cloud_done_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '✨ Đăng nhập thành công! Phiên trực tuyến đã được kích hoạt.',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.primary,
-              duration: Duration(seconds: 4),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-          );
-        }
-        return;
-      }
-
-      final errorMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại đường truyền mạng!";
+      final errorMsg = "Không thể kết nối đến máy chủ xác thực. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000) và kiểm tra lại kết nối!";
       setState(() {
         _resultMessage = errorMsg;
       });
@@ -1277,7 +1194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 6),
-                    const VerifiedBadge(text: "Đã xác thực sinh viên ICTU"),
+                    const VerifiedBadge(text: "Sinh viên ICTU"),
                   ],
                 ),
               ),
@@ -1433,7 +1350,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 16),
                 SizedBox(width: 8),
                 Text(
-                  'Hồ sơ đã xác minh chính chủ sinh viên',
+                  'Hồ sơ sinh viên COCO APP',
                   style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 Spacer(),
@@ -1537,24 +1454,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _message = "";
     });
 
-    final int newUserId = DateTime.now().millisecondsSinceEpoch % 1000000;
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Lưu tài khoản cục bộ để luôn đăng nhập được ngay cả trên Web hay ngoại tuyến
-    final regUserData = {
-      'id': newUserId,
-      'email': email,
-      'name': name,
-      'university': uni.isNotEmpty ? uni : 'ICTU',
-      'major': major.isNotEmpty ? major : 'Công nghệ thông tin',
-      'gender': _gender,
-      'password': password,
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-    await prefs.setString('reg_user_${email.toLowerCase()}', jsonEncode(regUserData));
-    await prefs.setString('remembered_email', email);
-
-    // 2. Gửi yêu cầu đăng ký lên Backend API
+    // Gửi yêu cầu đăng ký lên Backend API (Server kiểm tra trùng lặp email và lưu mã băm an toàn)
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.register),
@@ -1571,88 +1473,143 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint("Đăng ký thành công trên máy chủ API!");
+        final data = jsonDecode(response.body);
+        final userData = data is Map ? data['user'] : null;
+        final int newUserId = (userData != null && userData['id'] != null)
+            ? (userData['id'] is int ? userData['id'] : int.tryParse(userData['id'].toString()) ?? 10)
+            : (DateTime.now().millisecondsSinceEpoch % 1000000);
+
+        // Lưu thông tin hiển thị cơ bản (TUYỆT ĐỐI KHÔNG LƯU MẬT KHẨU)
+        await prefs.setString('remembered_email', email);
+        await prefs.setString('user_name', name);
+        await prefs.setString('user_university', uni);
+        await prefs.setString('user_major', major);
+        await prefs.setString('user_gender', _gender);
+
+        if (!mounted) return;
+
+        // Hiển thị hộp thoại chúc mừng & cho phép đăng nhập tức thì
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Tạo Tài Khoản Thành Công! 🎉',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Chào mừng bạn $name đã gia nhập COCO APP. Bạn có thể bắt đầu sử dụng ngay!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      // Tự động đăng nhập với thông tin vừa tạo
+                      final token = (data is Map && data['token'] != null) ? data['token'].toString() : 'auth_token_${DateTime.now().millisecondsSinceEpoch}';
+                      await prefs.setString('jwt_token', token);
+                      await prefs.setString('user_email', email);
+                      await prefs.setString('user_name', name);
+                      await prefs.setString('user_university', uni);
+                      await prefs.setString('user_major', major);
+                      await prefs.setString('user_gender', _gender);
+                      await prefs.setInt('user_id', newUserId);
+
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+                        );
+                      }
+                    },
+                    child: const Text('Bắt Đầu Trải Nghiệm Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Quay về màn hình đăng nhập
+                  },
+                  child: const Text('Quay lại Đăng nhập', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        // Máy chủ từ chối đăng ký (Email đã tồn tại, lỗi xác thực...)
+        String serverErr = "Đăng ký không thành công. Vui lòng kiểm tra lại!";
+        try {
+          final dynamic body = jsonDecode(response.body);
+          if (body is Map && body['message'] != null) {
+            serverErr = body['message'].toString();
+          } else if (body is String) {
+            serverErr = body;
+          }
+        } catch (_) {
+          if (response.body.isNotEmpty && response.body.length < 150) {
+            serverErr = response.body;
+          }
+        }
+
+        setState(() {
+          _message = serverErr;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(serverErr),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
-      debugPrint("Đăng ký trên máy chủ: $e (Đã lưu phiên ngoại tuyến an toàn)");
+      debugPrint("Lỗi kết nối máy chủ đăng ký: $e");
+      final connErr = "Không thể kết nối đến máy chủ đăng ký. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000) và thử lại!";
+      setState(() {
+        _message = connErr;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(connErr),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-
-    if (!mounted) return;
-
-    // Hiển thị hộp thoại chúc mừng & cho phép đăng nhập tức thì
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Tạo Tài Khoản Thành Công! 🎉',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Chào mừng bạn $name đã gia nhập COCO APP. Bạn có thể bắt đầu sử dụng ngay!',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  // Đăng nhập trực tiếp
-                  await prefs.setString('jwt_token', 'token_session_${DateTime.now().millisecondsSinceEpoch}');
-                  await prefs.setString('user_email', email);
-                  await prefs.setString('user_name', name);
-                  await prefs.setString('user_university', uni);
-                  await prefs.setString('user_major', major);
-                  await prefs.setString('user_gender', _gender);
-                  await prefs.setInt('user_id', newUserId);
-
-                  if (mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-                    );
-                  }
-                },
-                child: const Text('Bắt Đầu Trải Nghiệm Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context); // Quay về màn hình đăng nhập
-              },
-              child: const Text('Quay lại Đăng nhập', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-          ],
-        ),
-      ),
-    );
+    return;
   }
 
   @override

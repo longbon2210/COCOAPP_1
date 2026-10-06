@@ -144,7 +144,7 @@ class GradientPillBadge extends StatelessWidget {
 /// Verified Host Badge
 class VerifiedBadge extends StatelessWidget {
   final String text;
-  const VerifiedBadge({super.key, this.text = "Chính chủ xác thực"});
+  const VerifiedBadge({super.key, this.text = "Hồ sơ sinh viên"});
 
   @override
   Widget build(BuildContext context) {

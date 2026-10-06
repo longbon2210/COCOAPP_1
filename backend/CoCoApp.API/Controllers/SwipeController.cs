@@ -1,5 +1,6 @@
 using CocoApp.API.Data;
 using CocoApp.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -22,6 +23,7 @@ namespace CocoApp.API.Controllers
 		}
 	}
 
+	[Authorize]
 	[Route("api/[controller]")]
 	[Route("api/swipes")]
 	[ApiController]
@@ -45,16 +47,11 @@ namespace CocoApp.API.Controllers
 			if (targetId <= 0)
 				return BadRequest(new { error = "Thiếu ID người được chọn" });
 
-			// Lấy swiperId từ JWT Token nếu có, hoặc từ request, hoặc mặc định
-			int swiperId = 4; // Mặc định tài khoản thử nghiệm
+			// Khóa chặt: trích xuất swiperId DUY NHẤT từ JWT Token xác thực, nghiêm cấm giả mạo
 			var claimId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (!string.IsNullOrEmpty(claimId) && int.TryParse(claimId, out int parsedId))
+			if (string.IsNullOrEmpty(claimId) || !int.TryParse(claimId, out int swiperId))
 			{
-				swiperId = parsedId;
-			}
-			else if (request.SwiperId.HasValue && request.SwiperId.Value > 0)
-			{
-				swiperId = request.SwiperId.Value;
+				return Unauthorized(new { error = "Yêu cầu đăng nhập hợp lệ để thực hiện quẹt tương hợp." });
 			}
 
 			if (swiperId == targetId)
@@ -131,26 +128,27 @@ namespace CocoApp.API.Controllers
 		[HttpGet("my-matches")]
 		public IActionResult GetMyMatches()
 		{
-			int swiperId = 4;
 			var claimId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (!string.IsNullOrEmpty(claimId) && int.TryParse(claimId, out int parsedId))
+			if (string.IsNullOrEmpty(claimId) || !int.TryParse(claimId, out int swiperId))
 			{
-				swiperId = parsedId;
+				return Unauthorized(new { error = "Yêu cầu đăng nhập." });
 			}
-			return GetUserMatches(swiperId);
-		}
-
-		// GET: api/swipes/matches hoặc api/swipe/matches
-		[HttpGet("matches")]
-		public IActionResult GetAllMatches()
-		{
-			var matches = _context.Matches.ToList();
-			return Ok(matches);
+			return GetUserMatchesInternal(swiperId);
 		}
 
 		// GET: api/swipes/matches/{userId}
 		[HttpGet("matches/{userId}")]
 		public IActionResult GetUserMatches(int userId)
+		{
+			var claimId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (string.IsNullOrEmpty(claimId) || !int.TryParse(claimId, out int currentUserId) || currentUserId != userId)
+			{
+				return Forbid();
+			}
+			return GetUserMatchesInternal(userId);
+		}
+
+		private IActionResult GetUserMatchesInternal(int userId)
 		{
 			var matchedUserIds = _context.Swipes
 				.Where(s => (s.SwiperId == userId || s.SwipedUserId == userId) && s.IsMatch == true)
