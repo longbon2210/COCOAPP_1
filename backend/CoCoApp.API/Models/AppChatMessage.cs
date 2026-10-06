@@ -6,11 +6,11 @@ namespace CocoApp.API.Models
 	{
 		[Key]
 		public string Id { get; set; } = string.Empty;
-		public string SenderEmail { get; set; } = string.Empty;
-		public string ReceiverEmail { get; set; } = string.Empty;
-		public string SenderName { get; set; } = string.Empty;
-		public string ReceiverName { get; set; } = string.Empty;
-		public string Text { get; set; } = string.Empty;
+		public string? SenderEmail { get; set; }
+		public string? ReceiverEmail { get; set; }
+		public string? SenderName { get; set; }
+		public string? ReceiverName { get; set; }
+		public string? Text { get; set; }
 		public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 		public bool IsRead { get; set; } = false;
 	}

@@ -66,7 +66,7 @@ using (var scope = app.Services.CreateScope())
 	var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 	try
 	{
-		db.Database.EnsureCreated();
+		DataSeeder.EnsureTablesExist(db, isSqlServer);
 		DataSeeder.Seed(db);
 	}
 	catch (Exception ex)

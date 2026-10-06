@@ -6,13 +6,13 @@ namespace CocoApp.API.Models
 	{
 		[Key]
 		public string Id { get; set; } = string.Empty;
-		public string AuthorName { get; set; } = string.Empty;
-		public string AuthorEmail { get; set; } = string.Empty;
-		public string AuthorAvatar { get; set; } = string.Empty;
-		public string University { get; set; } = string.Empty;
-		public string Title { get; set; } = string.Empty;
-		public string Description { get; set; } = string.Empty;
-		public string Subject { get; set; } = string.Empty;
+		public string? AuthorName { get; set; }
+		public string? AuthorEmail { get; set; }
+		public string? AuthorAvatar { get; set; }
+		public string? University { get; set; }
+		public string? Title { get; set; }
+		public string? Description { get; set; }
+		public string? Subject { get; set; }
 		public List<string> Tags { get; set; } = new();
 		public int MembersCurrent { get; set; } = 1;
 		public int MembersNeeded { get; set; } = 4;

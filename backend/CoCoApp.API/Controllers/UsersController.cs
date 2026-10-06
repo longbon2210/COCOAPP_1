@@ -1,5 +1,6 @@
 using CocoApp.API.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CocoApp.API.Controllers
@@ -20,31 +21,33 @@ namespace CocoApp.API.Controllers
 		[HttpGet]
 		public IActionResult GetAllUsers()
 		{
-			var users = _context.Users.Select(u => new
+			var users = _context.Users.AsNoTracking().ToList();
+
+			var result = users.Select(u => new
 			{
 				id = u.Id,
-				email = u.Email,
-				name = string.IsNullOrEmpty(u.Name) ? u.Email.Split('@', StringSplitOptions.None)[0] : u.Name,
-				university = string.IsNullOrEmpty(u.University) ? "Đại học CNTT & Truyền Thông (ICTU)" : u.University,
-				major = string.IsNullOrEmpty(u.Major) ? "Công nghệ thông tin" : u.Major,
-				avatarUrl = string.IsNullOrEmpty(u.AvatarUrl)
-					? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500"
-					: u.AvatarUrl,
-				bio = string.IsNullOrEmpty(u.Bio) ? "Sinh viên năng động, mong muốn tìm bạn ở ghép văn minh." : u.Bio,
+				email = u.Email ?? "sinhvien@ictu.edu.vn",
+				name = !string.IsNullOrWhiteSpace(u.Name) ? u.Name : (u.Email?.Split('@').FirstOrDefault() ?? "Sinh viên"),
+				university = !string.IsNullOrWhiteSpace(u.University) ? u.University : "Đại học CNTT & Truyền Thông (ICTU)",
+				major = !string.IsNullOrWhiteSpace(u.Major) ? u.Major : "Công nghệ thông tin",
+				avatarUrl = !string.IsNullOrWhiteSpace(u.AvatarUrl)
+					? u.AvatarUrl
+					: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
+				bio = !string.IsNullOrWhiteSpace(u.Bio) ? u.Bio : "Sinh viên năng động, mong muốn tìm bạn ở ghép văn minh.",
 				rentalBudget = u.RentalBudget ?? 1800000,
-				roomLocation = string.IsNullOrEmpty(u.RoomLocation) ? "Khu Z115, Thái Nguyên" : u.RoomLocation,
-				roomStatus = string.IsNullOrEmpty(u.RoomStatus) ? "Đang tìm bạn ở ghép" : u.RoomStatus,
-				gender = string.IsNullOrEmpty(u.Gender) ? "Nam" : u.Gender,
+				roomLocation = !string.IsNullOrWhiteSpace(u.RoomLocation) ? u.RoomLocation : "Khu Z115, Thái Nguyên",
+				roomStatus = !string.IsNullOrWhiteSpace(u.RoomStatus) ? u.RoomStatus : "Đang tìm bạn ở ghép",
+				gender = !string.IsNullOrWhiteSpace(u.Gender) ? u.Gender : "Nam",
 				isSmoker = u.IsSmoker,
 				hasPet = u.HasPet,
-				studyGoal = string.IsNullOrEmpty(u.StudyGoal) ? "Cùng học và làm đồ án tốt nghiệp" : u.StudyGoal,
+				studyGoal = !string.IsNullOrWhiteSpace(u.StudyGoal) ? u.StudyGoal : "Cùng học và làm đồ án tốt nghiệp",
 				studySkills = new List<string> { "Học nhóm", "Thuyết trình", "Tiếng Anh", "Lập trình" },
 				lifestyleTags = new List<string> { "Không hút thuốc", "Gọn gàng", "Yên tĩnh học tập" },
 				compatibilityScore = u.CompatibilityScore > 0 ? u.CompatibilityScore : 92,
 				isOnline = u.IsOnline
 			}).ToList();
 
-			return Ok(users);
+			return Ok(result);
 		}
 
 		// GET: api/users/profile HOẶC api/user/profile
@@ -61,7 +64,7 @@ namespace CocoApp.API.Controllers
 
 			if (user == null && !string.IsNullOrWhiteSpace(email))
 			{
-				user = _context.Users.FirstOrDefault(u => u.Email.ToLower() == email.Trim().ToLower());
+				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == email.Trim().ToLower());
 			}
 
 			if (user == null)
@@ -74,24 +77,24 @@ namespace CocoApp.API.Controllers
 			return Ok(new
 			{
 				id = user.Id,
-				email = user.Email,
-				name = string.IsNullOrEmpty(user.Name) ? user.Email.Split('@', StringSplitOptions.None)[0] : user.Name,
-				university = user.University,
-				faculty = user.Faculty,
-				major = user.Major,
-				academicYear = user.AcademicYear,
-				avatarUrl = user.AvatarUrl,
-				introduction = user.Introduction,
-				bio = user.Bio,
-				facebookLink = user.FacebookLink,
-				githubLink = user.GithubLink,
-				skillsGoodAt = user.SkillsGoodAt,
-				skillsToLearn = user.SkillsToLearn,
-				sleepingTime = user.SleepingTime,
-				gender = user.Gender,
+				email = user.Email ?? "",
+				name = !string.IsNullOrWhiteSpace(user.Name) ? user.Name : (user.Email?.Split('@').FirstOrDefault() ?? "Sinh viên"),
+				university = user.University ?? "Đại học CNTT & Truyền Thông (ICTU)",
+				faculty = user.Faculty ?? "Công nghệ Thông tin",
+				major = user.Major ?? "Công nghệ thông tin",
+				academicYear = user.AcademicYear ?? "K21",
+				avatarUrl = user.AvatarUrl ?? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
+				introduction = user.Introduction ?? "",
+				bio = user.Bio ?? "",
+				facebookLink = user.FacebookLink ?? "",
+				githubLink = user.GithubLink ?? "",
+				skillsGoodAt = user.SkillsGoodAt ?? "",
+				skillsToLearn = user.SkillsToLearn ?? "",
+				sleepingTime = user.SleepingTime ?? "23:00",
+				gender = user.Gender ?? "Nam",
 				isSmoker = user.IsSmoker,
 				hasPet = user.HasPet,
-				rentalBudget = user.RentalBudget
+				rentalBudget = user.RentalBudget ?? 1800000
 			});
 		}
 
@@ -132,7 +135,7 @@ namespace CocoApp.API.Controllers
 
 			if (user == null && !string.IsNullOrWhiteSpace(request.Email))
 			{
-				user = _context.Users.FirstOrDefault(u => u.Email.ToLower() == request.Email.Trim().ToLower());
+				user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == request.Email.Trim().ToLower());
 			}
 
 			if (user == null)

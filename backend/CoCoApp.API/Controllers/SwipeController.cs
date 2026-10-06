@@ -107,5 +107,30 @@ namespace CocoApp.API.Controllers
 
 			return Ok(new { message, isMatch });
 		}
+
+		// GET: api/swipes/matches hoặc api/swipe/matches
+		[HttpGet("matches")]
+		public IActionResult GetAllMatches()
+		{
+			var matches = _context.Matches.ToList();
+			return Ok(matches);
+		}
+
+		// GET: api/swipes/matches/{userId}
+		[HttpGet("matches/{userId}")]
+		public IActionResult GetUserMatches(int userId)
+		{
+			var matchedUserIds = _context.Swipes
+				.Where(s => (s.SwiperId == userId || s.SwipedUserId == userId) && s.IsMatch == true)
+				.Select(s => s.SwiperId == userId ? s.SwipedUserId : s.SwiperId)
+				.Distinct()
+				.ToList();
+
+			var matchedProfiles = _context.Users
+				.Where(u => matchedUserIds.Contains(u.Id))
+				.ToList();
+
+			return Ok(matchedProfiles);
+		}
 	}
 }

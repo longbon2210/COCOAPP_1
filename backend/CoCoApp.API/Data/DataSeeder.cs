@@ -1,9 +1,153 @@
 using CocoApp.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace CocoApp.API.Data
 {
 	public static class DataSeeder
 	{
+		public static void EnsureTablesExist(AppDbContext context, bool isSqlServer)
+		{
+			if (!isSqlServer)
+			{
+				context.Database.EnsureCreated();
+				return;
+			}
+
+			try
+			{
+				// Tự động kiểm tra và tạo bảng Rooms trên SQL Server nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Rooms' AND xtype='U')
+					CREATE TABLE Rooms (
+						Id NVARCHAR(100) PRIMARY KEY,
+						Title NVARCHAR(500) NOT NULL,
+						Address NVARCHAR(500) NOT NULL,
+						UniversityNear NVARCHAR(200) NOT NULL,
+						Distance NVARCHAR(100) NOT NULL,
+						PricePerMonth FLOAT NOT NULL,
+						Deposit FLOAT NOT NULL,
+						AreaM2 FLOAT NOT NULL,
+						VacantRooms INT NOT NULL,
+						TotalRooms INT NOT NULL,
+						RoomType NVARCHAR(100) NOT NULL,
+						Floor NVARCHAR(50) NOT NULL,
+						MoveInDate NVARCHAR(100) NOT NULL,
+						Images NVARCHAR(MAX) NOT NULL,
+						Amenities NVARCHAR(MAX) NOT NULL,
+						LandlordName NVARCHAR(200) NOT NULL,
+						LandlordPhone NVARCHAR(50) NOT NULL,
+						AuthorEmail NVARCHAR(200) NOT NULL,
+						ElectricityRate FLOAT NOT NULL,
+						WaterRate FLOAT NOT NULL,
+						Rating FLOAT NOT NULL,
+						ReviewsCount INT NOT NULL,
+						Description NVARCHAR(MAX) NOT NULL,
+						IsAvailable BIT NOT NULL,
+						GenderPreference NVARCHAR(50) NOT NULL,
+						IsBookmarked BIT NOT NULL
+					);
+				");
+
+				// Tự động tạo bảng Bookings trên SQL Server nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Bookings' AND xtype='U')
+					CREATE TABLE Bookings (
+						Id NVARCHAR(100) PRIMARY KEY,
+						RoomId NVARCHAR(100) NOT NULL,
+						RoomTitle NVARCHAR(500) NOT NULL,
+						RoomAddress NVARCHAR(500) NOT NULL,
+						LandlordName NVARCHAR(200) NOT NULL,
+						LandlordPhone NVARCHAR(50) NOT NULL,
+						UserEmail NVARCHAR(200) NOT NULL,
+						UserName NVARCHAR(200) NOT NULL,
+						UserPhone NVARCHAR(50) NOT NULL,
+						BookingDate NVARCHAR(50) NOT NULL,
+						TimeSlot NVARCHAR(100) NOT NULL,
+						Note NVARCHAR(MAX) NOT NULL,
+						Status NVARCHAR(50) NOT NULL,
+						CreatedAt DATETIME2 NOT NULL
+					);
+				");
+
+				// Tự động tạo bảng StudyPosts trên SQL Server nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='StudyPosts' AND xtype='U')
+					CREATE TABLE StudyPosts (
+						Id NVARCHAR(100) PRIMARY KEY,
+						AuthorName NVARCHAR(200) NOT NULL,
+						AuthorEmail NVARCHAR(200) NOT NULL,
+						AuthorAvatar NVARCHAR(500) NOT NULL,
+						University NVARCHAR(200) NOT NULL,
+						Title NVARCHAR(500) NOT NULL,
+						Description NVARCHAR(MAX) NOT NULL,
+						Subject NVARCHAR(200) NOT NULL,
+						Tags NVARCHAR(MAX) NOT NULL,
+						MembersCurrent INT NOT NULL,
+						MembersNeeded INT NOT NULL,
+						CreatedAt DATETIME2 NOT NULL,
+						PartnerId INT NOT NULL
+					);
+				");
+
+				// Tự động tạo bảng ChatMessages trên SQL Server nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ChatMessages' AND xtype='U')
+					CREATE TABLE ChatMessages (
+						Id NVARCHAR(100) PRIMARY KEY,
+						SenderEmail NVARCHAR(200) NOT NULL,
+						ReceiverEmail NVARCHAR(200) NOT NULL,
+						SenderName NVARCHAR(200) NOT NULL,
+						ReceiverName NVARCHAR(200) NOT NULL,
+						Text NVARCHAR(MAX) NOT NULL,
+						Timestamp DATETIME2 NOT NULL,
+						IsRead BIT NOT NULL
+					);
+				");
+
+				// Tự động tạo bảng Matches trên SQL Server nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Matches' AND xtype='U')
+					CREATE TABLE Matches (
+						Id INT IDENTITY(1,1) PRIMARY KEY,
+						User1Id INT NOT NULL,
+						User2Id INT NOT NULL,
+						MatchedAt DATETIME2 NOT NULL
+					);
+				");
+
+				// Bổ sung các cột mới trong bảng Users nếu chưa có
+				context.Database.ExecuteSqlRaw(@"
+					IF COL_LENGTH('Users', 'Name') IS NULL ALTER TABLE Users ADD Name NVARCHAR(200) NULL;
+					IF COL_LENGTH('Users', 'Bio') IS NULL ALTER TABLE Users ADD Bio NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'RoomLocation') IS NULL ALTER TABLE Users ADD RoomLocation NVARCHAR(200) NULL;
+					IF COL_LENGTH('Users', 'RoomStatus') IS NULL ALTER TABLE Users ADD RoomStatus NVARCHAR(200) NULL;
+					IF COL_LENGTH('Users', 'StudyGoal') IS NULL ALTER TABLE Users ADD StudyGoal NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'CompatibilityScore') IS NULL ALTER TABLE Users ADD CompatibilityScore INT NOT NULL DEFAULT 90;
+					IF COL_LENGTH('Users', 'IsOnline') IS NULL ALTER TABLE Users ADD IsOnline BIT NOT NULL DEFAULT 1;
+					IF COL_LENGTH('Users', 'AcademicYear') IS NOT NULL ALTER TABLE Users ALTER COLUMN AcademicYear NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'Faculty') IS NOT NULL ALTER TABLE Users ALTER COLUMN Faculty NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'Introduction') IS NOT NULL ALTER TABLE Users ALTER COLUMN Introduction NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'FacebookLink') IS NOT NULL ALTER TABLE Users ALTER COLUMN FacebookLink NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'GithubLink') IS NOT NULL ALTER TABLE Users ALTER COLUMN GithubLink NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'SkillsGoodAt') IS NOT NULL ALTER TABLE Users ALTER COLUMN SkillsGoodAt NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'SkillsToLearn') IS NOT NULL ALTER TABLE Users ALTER COLUMN SkillsToLearn NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'SleepingTime') IS NOT NULL ALTER TABLE Users ALTER COLUMN SleepingTime NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'Gender') IS NOT NULL ALTER TABLE Users ALTER COLUMN Gender NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'AvatarUrl') IS NOT NULL ALTER TABLE Users ALTER COLUMN AvatarUrl NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'University') IS NOT NULL ALTER TABLE Users ALTER COLUMN University NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Users', 'Major') IS NOT NULL ALTER TABLE Users ALTER COLUMN Major NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Swipes', 'SwipedUserId') IS NULL AND COL_LENGTH('Swipes', 'SwipedId') IS NOT NULL
+					BEGIN
+						EXEC sp_rename 'Swipes.SwipedId', 'SwipedUserId', 'COLUMN';
+					END
+				");
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"[Cảnh báo khởi tạo bảng SQL Server]: {ex.Message}");
+			}
+		}
+
 		public static void Seed(AppDbContext context)
 		{
 			// 1. SEED USERS
