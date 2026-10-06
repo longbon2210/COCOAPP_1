@@ -1,0 +1,47 @@
+[
+  {
+    "id": "post_1727670101",
+    "authorName": "Nguyễn Hoàng Nam",
+    "authorEmail": "nam.nh.k21@ictu.edu.vn",
+    "authorAvatar": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500",
+    "university": "Đại học CNTT & Truyền Thông (ICTU)",
+    "title": "Tìm 1 bạn cùng làm Đồ Án Chuyên Ngành - Xây dựng Ứng dụng Di động Flutter",
+    "description": "Nhóm mình hiện đã có 2 người, đề tài về ứng dụng quản lý phòng trọ sinh viên. Cần thêm 1 bạn phụ trách giao diện UI/UX Flutter hoặc backend Node.js/Dart. Làm việc nghiêm túc, cùng nhau lấy điểm A nhé!",
+    "subject": "Đồ án CNTT",
+    "tags": ["Flutter", "Dart", "Đồ án K21", "ICTU"],
+    "membersCurrent": 2,
+    "membersNeeded": 3,
+    "createdAt": "2026-09-29T14:30:00Z",
+    "partnerId": 101
+  },
+  {
+    "id": "post_1727670102",
+    "authorName": "Trần Thu Trang",
+    "authorEmail": "trang.tt.k22@ictu.edu.vn",
+    "authorAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500",
+    "university": "Đại học CNTT & Truyền Thông (ICTU)",
+    "title": "Lập nhóm 3-4 bạn cùng tự học & giải đề TOEIC mục tiêu 650+ chuẩn đầu ra",
+    "description": "Nhóm học online buổi tối (20h - 22h) các ngày thứ 3, 5, 7 qua Google Meet. Mỗi buổi cùng giải 1 đề ETS và chữa từ vựng Part 5, 7. Bạn nào có cùng mục tiêu ra trường đúng hạn thì nhắn tin mình nhé!",
+    "subject": "Ngoại ngữ & TOEIC",
+    "tags": ["TOEIC", "Tiếng Anh", "Luyện đề", "Đầu ra chuẩn"],
+    "membersCurrent": 2,
+    "membersNeeded": 4,
+    "createdAt": "2026-09-30T08:15:00Z",
+    "partnerId": 102
+  },
+  {
+    "id": "post_1727670103",
+    "authorName": "Lê Văn Quân",
+    "authorEmail": "quan.lv.k21@ictu.edu.vn",
+    "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
+    "university": "Đại học CNTT & Truyền Thông (ICTU)",
+    "title": "Tìm bạn học chung môn Cấu trúc dữ liệu & Thuật toán + Ôn thi cuối kỳ",
+    "description": "Mình đang ôn tập phần cây nhị phân, đồ thị và quy hoạch động. Muốn tìm bạn học cùng ngồi thư viện trường hoặc quán cafe gần Z115 để trao đổi code C++ / Java cho dễ hiểu.",
+    "subject": "Khoa học máy tính",
+    "tags": ["C++", "Thuật toán", "Cấu trúc dữ liệu", "Ôn thi"],
+    "membersCurrent": 1,
+    "membersNeeded": 2,
+    "createdAt": "2026-09-30T09:45:00Z",
+    "partnerId": 103
+  }
+]

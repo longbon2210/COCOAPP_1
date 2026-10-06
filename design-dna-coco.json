@@ -1,0 +1,389 @@
+{
+  "meta": {
+    "name": "COCO Student Living & Study Ecosystem DNA",
+    "description": "A vibrant, contemporary Gen-Z student living, room finding and collaborative study platform combining Airbnb-grade trust with Linear/Notion modern clarity.",
+    "source_references": [
+      "Airbnb Modern Booking Engine",
+      "Linear App Design System",
+      "Apple Human Interface Guidelines (Glassmorphism & Depth)",
+      "Vite & Tailwind High-Contrast Modern Palettes"
+    ],
+    "created_at": "2026-09-30T10:55:00Z"
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "split-complementary",
+      "primary": {
+        "hex": "#4F46E5",
+        "role": "brand-action-identity"
+      },
+      "secondary": {
+        "hex": "#7C3AED",
+        "role": "community-social-energy"
+      },
+      "accent": {
+        "hex": "#06B6D4",
+        "role": "interactive-highlights-ratings"
+      },
+      "neutral": {
+        "scale": [
+          "#FFFFFF",
+          "#F8FAFC",
+          "#F1F5F9",
+          "#E2E8F0",
+          "#CBD5E1",
+          "#94A3B8",
+          "#64748B",
+          "#475569",
+          "#334155",
+          "#1E293B",
+          "#0F172A",
+          "#0B0F19"
+        ],
+        "usage": "Lightest for frosted glass cards and app scaffolds; mid tones for borders and subtle chip backgrounds; darkest for high-contrast crisp typography."
+      },
+      "semantic": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6"
+      },
+      "surface": {
+        "background": "#F8FAFC",
+        "card": "#FFFFFF",
+        "elevated": "#FFFFFF"
+      },
+      "contrast_strategy": "dark-on-light dominant with vibrant tinted badges and high-contrast primary CTA buttons"
+    },
+    "typography": {
+      "type_scale": {
+        "display": {
+          "size": "32px",
+          "weight": "800",
+          "line_height": "1.2",
+          "tracking": "-0.025em"
+        },
+        "heading_1": {
+          "size": "24px",
+          "weight": "700",
+          "line_height": "1.25",
+          "tracking": "-0.02em"
+        },
+        "heading_2": {
+          "size": "20px",
+          "weight": "700",
+          "line_height": "1.3",
+          "tracking": "-0.015em"
+        },
+        "heading_3": {
+          "size": "17px",
+          "weight": "600",
+          "line_height": "1.35",
+          "tracking": "-0.01em"
+        },
+        "body": {
+          "size": "15px",
+          "weight": "400",
+          "line_height": "1.5",
+          "tracking": "0"
+        },
+        "body_small": {
+          "size": "13px",
+          "weight": "500",
+          "line_height": "1.4",
+          "tracking": "0"
+        },
+        "caption": {
+          "size": "11px",
+          "weight": "600",
+          "line_height": "1.3",
+          "tracking": "0.02em"
+        },
+        "overline": {
+          "size": "10px",
+          "weight": "700",
+          "line_height": "1.2",
+          "tracking": "0.08em"
+        }
+      },
+      "font_families": {
+        "heading": "Plus Jakarta Sans, Inter, system-ui, sans-serif",
+        "body": "Inter, system-ui, sans-serif",
+        "mono": "JetBrains Mono, ui-monospace, monospace"
+      },
+      "font_style_notes": "Geometric sans with humanist warmth, tight tracking on headings for punchy readability, generous line height on descriptions."
+    },
+    "spacing": {
+      "base_unit": "4px",
+      "scale": [
+        "4px",
+        "8px",
+        "12px",
+        "16px",
+        "20px",
+        "24px",
+        "32px",
+        "40px",
+        "48px",
+        "64px"
+      ],
+      "content_density": "comfortable",
+      "section_rhythm": "16px between compact elements, 24px between distinct functional modules, 32px below hero banners."
+    },
+    "layout": {
+      "grid_system": "12-column responsive fluid grid with mobile single-column card stack",
+      "max_content_width": "1100px",
+      "columns": "1 to 3 depending on viewport width",
+      "gutter": "16px",
+      "breakpoints": {
+        "mobile": "600px",
+        "tablet": "900px",
+        "desktop": "1200px"
+      },
+      "alignment_tendency": "strict grid with subtle asymmetric badge accents"
+    },
+    "shape": {
+      "border_radius": {
+        "small": "8px",
+        "medium": "14px",
+        "large": "20px",
+        "pill": "9999px"
+      },
+      "border_usage": "subtle 1px border (#E2E8F0) on light cards, translucent white on glass overlays",
+      "divider_style": "1px solid #F1F5F9 hairline"
+    },
+    "elevation": {
+      "shadow_style": "layered soft diffused with tinted button glows",
+      "levels": {
+        "low": "0 2px 4px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02)",
+        "medium": "0 8px 20px -4px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03)",
+        "high": "0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04)"
+      },
+      "depth_cues": "ambient soft shadows, frosted glass blur layers, and floating navigation elevation"
+    },
+    "iconography": {
+      "style": "rounded geometric dual-state (outlined inactive, filled vibrant active)",
+      "stroke_weight": "1.75px",
+      "size_scale": ["16px", "20px", "24px", "32px"],
+      "preferred_set": "Material Symbols Rounded"
+    },
+    "motion": {
+      "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "duration_scale": {
+        "micro": "120ms",
+        "normal": "240ms",
+        "macro": "360ms"
+      },
+      "entrance_pattern": "fade-scale in with slight upward translation",
+      "exit_pattern": "fade out with smooth collapse",
+      "philosophy": "snappy, responsive, micro-haptic feedback without distracting inertia"
+    },
+    "components": {
+      "button_style": "Pill & smooth rounded-14 buttons with gradient fills, subtle glow shadow, and scale tap feedback",
+      "input_style": "Filled clean slate-50/white inputs with 1.2px border, focusing to primary indigo glow",
+      "card_style": "Frosted or pure white rounded-20 cards with crisp image containers, floating badge overlays, and soft ambient shadow",
+      "navigation_pattern": "Floating glass bottom dock with pill active indicators and status notification dots",
+      "modal_style": "Bottom sheet with rounded-t-24 header, drag handle, and transparent backdrop blur",
+      "list_style": "Separated card rows with rounded corners and clear chevron cues",
+      "component_notes": "Tag pills have 10% opacity colored backgrounds with 100% saturation foreground text for instant scannability."
+    }
+  },
+  "design_style": {
+    "aesthetic": {
+      "mood": ["energetic", "approachable", "reliable", "modern", "aspirational"],
+      "visual_metaphor": "A vibrant digital campus town square and trusted hospitality concierge",
+      "era_influence": "2025-2026 Neo-Modern SaaS & Glassmorphic Mobile",
+      "genre": "Student Living & Collaborative Community Hub",
+      "personality_traits": ["helpful", "young", "organized", "trustworthy", "dynamic"],
+      "adjectives": ["crisp", "fluid", "vibrant", "polished", "intuitive"]
+    },
+    "visual_language": {
+      "complexity": "moderate",
+      "ornamentation": "subtle accents (gradient badges, soft mesh headers, ambient glows)",
+      "whitespace_usage": "generous breathing room around cards and section headers",
+      "visual_weight_distribution": "top-heavy hero banners transitioning into clean structured cards",
+      "focal_strategy": "high-contrast price badges and primary action buttons as immediate anchors",
+      "contrast_level": "high typographic contrast with soft background transitions",
+      "texture_usage": "smooth frosted glass backdrop-filter blur and subtle gradient mesh"
+    },
+    "composition": {
+      "hierarchy_method": "typographic scale + color weight + spatial elevation",
+      "balance_type": "asymmetric dynamic balance with card anchors",
+      "flow_direction": "vertical scroll with horizontal pill tag filter carousels",
+      "grouping_strategy": "self-contained card islands with clear perimeter borders and tags",
+      "negative_space_role": "creates clarity and prevents student cognitive fatigue"
+    },
+    "imagery": {
+      "photo_treatment": "high-saturation, warm ambient architectural and lifestyle photos with 16:10 or 4:3 aspect ratios",
+      "illustration_style": "minimalist isometric line icons and gradient avatar rings",
+      "graphic_elements": "pill chips, notification badges, verified checkmarks, compatibility meters",
+      "pattern_usage": "subtle dot matrix or radial glow in hero cards",
+      "image_shape": "rounded-16 inside cards with smooth clipBehavior"
+    },
+    "interaction_feel": {
+      "feedback_style": "immediate visual feedback on tap (scale 0.98, opacity dip)",
+      "hover_behavior": "slight upward lift (-2px) and shadow bloom on desktop web",
+      "transition_personality": "smooth spring glide",
+      "loading_style": "shimmer skeletons and circular branded spinners",
+      "microinteraction_density": "moderate - on hearts, bookmarks, tabs, and filter pills"
+    },
+    "brand_voice_in_ui": {
+      "tone": "friendly, enthusiastic, helpful, direct",
+      "formality": "semi-casual student-friendly with clear financial and rental transparency",
+      "cta_style": "action-oriented imperative (Đặt Phòng Ngay, Nhắn Tin, Ghép Đôi, Đăng Tin)",
+      "empty_state_approach": "encouraging illustrations with a clear primary button to explore or reset filters",
+      "error_tone": "constructive, gentle, and action-remedying"
+    }
+  },
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "subtle-accent",
+      "performance_tier": "lightweight",
+      "fallback_strategy": "graceful degradation to solid flat containers on low-tier browsers",
+      "primary_technology": "Flutter Canvas, CustomPainter, BackdropFilter & ShaderMask"
+    },
+    "background_effects": {
+      "type": "mesh-gradient",
+      "description": "Multi-stop radial and linear gradients simulating ambient colored light (indigo, violet, soft sky) behind headers and login cards.",
+      "technology": "Flutter LinearGradient & RadialGradient BoxDecoration",
+      "params": {
+        "color_palette": ["#4F46E5", "#7C3AED", "#06B6D4", "#EEF2FF"],
+        "speed": "static / subtle shimmer",
+        "density": "low",
+        "opacity": "0.12",
+        "blend_mode": "softLight"
+      }
+    },
+    "particle_systems": {
+      "enabled": false,
+      "type": "floating-dots",
+      "description": "None for core functional screens to preserve high performance and clarity.",
+      "technology": "Flutter CustomPainter",
+      "params": {
+        "count": 0,
+        "shape": "circle",
+        "size_range": "2-4px",
+        "movement_pattern": "none",
+        "color_behavior": "static",
+        "interaction": "none",
+        "spawn_area": "none"
+      }
+    },
+    "3d_elements": {
+      "enabled": false,
+      "type": "abstract-geometry",
+      "description": "None required for mobile utility app; 2.5D elevation layers used instead.",
+      "technology": "Canvas 2D",
+      "params": {
+        "renderer": "none",
+        "lighting": "none",
+        "camera": "none",
+        "materials": "none",
+        "geometry": "none",
+        "post_processing": ["none"],
+        "interaction_model": "none"
+      }
+    },
+    "shader_effects": {
+      "enabled": true,
+      "type": "color-shift",
+      "description": "Subtle ShaderMask on brand text titles and active gradient icons.",
+      "technology": "Flutter ShaderMask with LinearGradient",
+      "params": {
+        "uniforms": {},
+        "vertex_manipulation": "none",
+        "fragment_output": "gradient-masked texture",
+        "noise_type": "none",
+        "distortion": "none"
+      }
+    },
+    "scroll_effects": {
+      "parallax": {
+        "enabled": true,
+        "layers": 2,
+        "depth_range": "header card slow scroll vs fast content",
+        "speed_curve": "linear offset"
+      },
+      "scroll_triggered_animations": {
+        "enabled": true,
+        "trigger_points": ["viewport entry"],
+        "animation_type": "fade-up",
+        "scrub_behavior": "once on load"
+      },
+      "scroll_morphing": {
+        "enabled": true,
+        "description": "Floating search bar compacts into slim appbar header on scroll."
+      }
+    },
+    "text_effects": {
+      "type": "gradient-fill",
+      "description": "Gradient text mask on COCO APP logo and high-priority statistics",
+      "technology": "ShaderMask",
+      "params": {
+        "split_strategy": "by-word",
+        "animation_per_unit": "none",
+        "stagger": "0ms",
+        "effect_style": "linear gradient mask #4F46E5 -> #7C3AED"
+      }
+    },
+    "cursor_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "Standard responsive touch and mouse pointer.",
+      "params": {
+        "shape": "default",
+        "size": "default",
+        "blend_mode": "normal",
+        "trail": false,
+        "interaction_zone": "clickable elements"
+      }
+    },
+    "image_effects": {
+      "type": "parallax-tilt",
+      "description": "Smooth zoom & elevation bloom on card hover/tap",
+      "technology": "Flutter AnimatedContainer & InkWell",
+      "params": {
+        "filter_pipeline": "none",
+        "hover_transform": "scale(1.015)",
+        "reveal_animation": "fade-in 200ms",
+        "distortion_type": "none"
+      }
+    },
+    "glassmorphism_neumorphism": {
+      "enabled": true,
+      "style": "frosted-layers",
+      "params": {
+        "blur_radius": "16px",
+        "transparency": "0.85",
+        "border_treatment": "1px solid rgba(255, 255, 255, 0.4)",
+        "shadow_type": "diffused ambient",
+        "light_source_angle": "top-left"
+      }
+    },
+    "canvas_drawings": {
+      "enabled": true,
+      "type": "data-visualization",
+      "description": "Circular compatibility match indicator and rating arc bar.",
+      "technology": "Flutter CustomPainter",
+      "params": {
+        "draw_method": "drawArc & drawCircle",
+        "animation_loop": "tween animation on card load",
+        "color_scheme": ["#10B981", "#4F46E5"],
+        "responsiveness": "responsive size to parent box",
+        "interaction": "tap to see compatibility details"
+      }
+    },
+    "svg_animations": {
+      "enabled": false,
+      "type": "none",
+      "description": "Standard Flutter vector icons used.",
+      "params": {
+        "animation_method": "none",
+        "path_morphing": false,
+        "stroke_animation": false,
+        "filter_effects": "none"
+      }
+    },
+    "composite_notes": "The primary aesthetic impact comes from the harmonious combination of: (1) crisp typography, (2) frosted glass floating navigation dock with active pill indicator, (3) layered ambient drop shadows, and (4) vibrant gradient badges that make listings and roommate profiles immediately feel alive, trustworthy, and modern."
+  }
+}

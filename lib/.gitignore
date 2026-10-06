@@ -1,0 +1,19 @@
+# Visual Studio / .NET Core
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/appsettings.Development.json
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+**/.pub-cache/
+**/.pub/
+
+# IDE files
+**/.idea/
+**/.vscode/
+**/*.suo

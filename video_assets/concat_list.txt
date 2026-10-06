@@ -1,0 +1,7 @@
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene1_intro.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene2_rooms.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene3_roommates.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene4_study.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene5_chat.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene6_profile.mp4'
+file 'C:/Users/Admin/Desktop/coco_app/video_assets/clips/scene7_conclusion.mp4'
