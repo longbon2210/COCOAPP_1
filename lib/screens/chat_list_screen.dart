@@ -7,6 +7,7 @@ import '../constants/api_config.dart';
 import '../models/user_profile.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
+import '../services/match_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_detail_screen.dart';
 
@@ -21,6 +22,7 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final ChatService _chatService = ChatService();
+  final MatchService _matchService = MatchService();
   final TextEditingController _searchController = TextEditingController();
 
   List<UserProfile> _matchedUsers = [];
@@ -35,7 +37,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     super.initState();
     _loadData();
     _chatService.addListener(_onServiceUpdate);
-    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+    _matchService.addListener(_onServiceUpdate);
+    _chatService.initSignalR();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) _loadData();
     });
   }
@@ -44,6 +48,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     _chatService.removeListener(_onServiceUpdate);
+    _matchService.removeListener(_onServiceUpdate);
     _searchController.dispose();
     super.dispose();
   }
@@ -146,9 +151,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
     // Sắp xếp cuộc trò chuyện có tin nhắn mới nhất lên đầu
     convos.sort((a, b) => b.lastMessage.timestamp.compareTo(a.lastMessage.timestamp));
 
+    // Lấy danh sách bạn bè đã MATCH THỰC TẾ từ Backend API qua MatchService (KHÔNG fake %4)
+    final realMatched = await _matchService.getMatchedUsers();
+
     if (mounted) {
       setState(() {
-        _matchedUsers = realUsers;
+        _matchedUsers = realMatched;
         _conversations = convos;
         _isLoading = false;
       });

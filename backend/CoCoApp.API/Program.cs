@@ -25,18 +25,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 	}
 });
 
-// 2. CẤU HÌNH CORS CHO PHÉP FLUTTER WEB & MOBILE KẾT NỐI
+// 2. CẤU HÌNH CORS CHO PHÉP FLUTTER WEB & MOBILE KẾT NỐI (BAO GỒM CẢ SIGNALR WEBSOCKET)
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("AllowAll", policy =>
 	{
-		policy.AllowAnyOrigin()
+		policy.SetIsOriginAllowed(_ => true)
 			  .AllowAnyHeader()
-			  .AllowAnyMethod();
+			  .AllowAnyMethod()
+			  .AllowCredentials();
 	});
 });
 
-// 3. CẤU HÌNH JWT AUTHENTICATION
+// 3. CẤU HÌNH JWT AUTHENTICATION VỚI HỖ TRỢ SIGNALR HUBS
 var jwtSecret = builder.Configuration["Jwt:Key"] ?? "MotChuoiKyTuBiMatRatDaiVaKhoDoanChoDuAnCocoApp123!@#";
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 
@@ -50,6 +51,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			ValidateLifetime = true,
 			ValidateIssuerSigningKey = true,
 			IssuerSigningKey = new SymmetricSecurityKey(key)
+		};
+		// Hỗ trợ truyền Token qua Query String ?access_token=... khi kết nối WebSocket SignalR
+		options.Events = new JwtBearerEvents
+		{
+			OnMessageReceived = context =>
+			{
+				var accessToken = context.Request.Query["access_token"];
+				var path = context.HttpContext.Request.Path;
+				if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+				{
+					context.Token = accessToken;
+				}
+				return Task.CompletedTask;
+			}
 		};
 	});
 

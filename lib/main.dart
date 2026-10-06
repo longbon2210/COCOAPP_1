@@ -68,11 +68,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final targetEmail = _emailController.text.trim();
 
-    // Chế độ trải nghiệm nhanh
+    // Chế độ trải nghiệm nhanh (chỉ khi người dùng chủ động bấm nút Khám Phá Nhanh)
     if (isDemo) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', 'demo_jwt_token_${DateTime.now().millisecondsSinceEpoch}');
       await prefs.setString('user_email', targetEmail.isNotEmpty ? targetEmail : '0000@gmail.com');
+      await prefs.setInt('user_id', 4);
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -102,6 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('jwt_token', token);
         await prefs.setString('user_email', targetEmail);
 
+        if (data['user'] != null && data['user']['id'] != null) {
+          final int userId = data['user']['id'] is int ? data['user']['id'] : int.tryParse(data['user']['id'].toString()) ?? 4;
+          await prefs.setInt('user_id', userId);
+        } else {
+          await prefs.setInt('user_id', 4);
+        }
+
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -110,27 +118,49 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         return;
       } else {
-        // Fallback: Cho phép truy cập cục bộ nếu server trả về mã lỗi
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwt_token', 'local_jwt_${DateTime.now().millisecondsSinceEpoch}');
-        await prefs.setString('user_email', targetEmail);
+        // Backend trả về mã lỗi (400, 401, 500...) -> CHẶN LẠI VÀ BÁO LỖI, KHÔNG CHO VÀO APP!
+        String errorMsg = 'Đăng nhập thất bại (Mã lỗi ${response.statusCode})';
+        try {
+          final dynamic errBody = jsonDecode(response.body);
+          if (errBody is Map && errBody['message'] != null) {
+            errorMsg = errBody['message'].toString();
+          } else if (errBody is String) {
+            errorMsg = errBody;
+          }
+        } catch (_) {
+          if (response.body.isNotEmpty && response.body.length < 120) {
+            errorMsg = response.body;
+          }
+        }
+
+        setState(() {
+          _resultMessage = errorMsg;
+        });
+
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       }
     } catch (e) {
-      debugPrint("Đăng nhập chuyển tiếp cục bộ: $e");
-      // Tự động chuyển tiếp vào chế độ trực tuyến cục bộ để người dùng trải nghiệm mượt mà 100%
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('jwt_token', 'local_fallback_jwt_${DateTime.now().millisecondsSinceEpoch}');
-      await prefs.setString('user_email', targetEmail);
+      debugPrint("Lỗi kết nối máy chủ đăng nhập: $e");
+      final errorMsg = "Không thể kết nối đến máy chủ Backend ($e). Vui lòng kiểm tra lại dịch vụ Backend!";
+      setState(() {
+        _resultMessage = errorMsg;
+      });
+
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 import '../models/room_listing.dart';
 import '../constants/api_config.dart';
+import '../services/match_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_widgets.dart';
 import 'chat_detail_screen.dart';
@@ -30,6 +31,87 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'Tất cả';
   final TextEditingController _searchController = TextEditingController();
+
+  Future<void> _handleSwipeUser(UserProfile user, bool isLike) async {
+    final result = await MatchService().recordSwipeDetailed(user: user, isLike: isLike);
+    final isMatch = result['isMatch'] == true;
+    final message = result['message']?.toString() ?? (isLike ? 'Đã thích hồ sơ!' : 'Đã bỏ qua hồ sơ.');
+
+    if (!mounted) return;
+
+    if (isMatch) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 40),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'TƯƠNG HỢP (MATCH) THÀNH CÔNG! 🎉',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Chúc mừng! Bạn và ${user.name} đều thích hồ sơ của nhau. Hai bạn hiện đã chính thức tương hợp và kết nối bạn bè!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Để sau'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ChatDetailScreen(partner: user)),
+                        );
+                      },
+                      child: const Text('Nhắn tin ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isLike ? AppColors.primary : AppColors.textSecondary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -741,10 +823,31 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             // NÚT HÀNH ĐỘNG
             Row(
               children: [
+                // NÚT THÍCH HỒ SƠ ĐỂ GHÉP ĐÔI (GỌI API SWIPES THỰC TẾ)
+                Tooltip(
+                  message: 'Thả tim ghép đôi (Match)',
+                  child: Material(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _handleSwipeUser(user, true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.info_outline_rounded, size: 18),
-                    label: const Text('Xem Hồ Sơ'),
+                    icon: const Icon(Icons.info_outline_rounded, size: 16),
+                    label: const Text('Xem Hồ Sơ', style: TextStyle(fontSize: 13)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -753,7 +856,7 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                     onPressed: () => _showUserDetailsModal(user),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -762,8 +865,8 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
                       boxShadow: AppColors.buttonShadow,
                     ),
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.chat_bubble_rounded, size: 18, color: Colors.white),
-                      label: const Text('Nhắn Tin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Colors.white),
+                      label: const Text('Nhắn Tin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -992,24 +1095,47 @@ class _RoommateFinderScreenState extends State<RoommateFinderScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white),
-                  label: const Text('Nhắn Tin Trực Tiếp Với Tài Khoản Này'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.favorite_rounded, color: AppColors.primary),
+                        label: const Text('Thả Tim Match', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _handleSwipeUser(user, true);
+                        },
+                      ),
+                    ),
                   ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ChatDetailScreen(partner: user)),
-                    );
-                  },
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white),
+                        label: const Text('Nhắn Tin', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => ChatDetailScreen(partner: user)),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

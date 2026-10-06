@@ -29,7 +29,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.initState();
     _loadMessages();
     _chatService.addListener(_onServiceUpdate);
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    // Khởi tạo kết nối Real-time SignalR tới Backend ChatHub
+    _chatService.initSignalR();
+    // Dự phòng đồng bộ nhẹ nhàng mỗi 15 giây (ưu tiên nhận tin tức thời qua SignalR)
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) _loadMessages();
     });
   }
@@ -139,13 +142,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    '${widget.partner.university} • ${widget.partner.major}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _chatService.isSignalRConnected ? AppColors.success : AppColors.accentAmber,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _chatService.isSignalRConnected ? 'Real-time SignalR' : 'Đang kết nối SignalR...',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _chatService.isSignalRConnected ? AppColors.success : AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '• ${widget.partner.university}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

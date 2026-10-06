@@ -34,4 +34,6 @@ class ApiConfig {
   static String get rooms => '$baseUrl/api/rooms';
   static String get messages => '$baseUrl/api/messages';
   static String get bookings => '$baseUrl/api/bookings';
+  static String get chatHub => '$baseUrl/chatHub';
+  static String get matches => '$baseUrl/api/swipes/matches';
 }

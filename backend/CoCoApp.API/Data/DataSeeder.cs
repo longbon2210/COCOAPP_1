@@ -438,6 +438,33 @@ namespace CocoApp.API.Data
 				context.ChatMessages.AddRange(sampleMessages);
 				context.SaveChanges();
 			}
+
+			// 5. SEED SAMPLE SWIPES (Tạo sẵn lượt thích đến tài khoản demo để trải nghiệm Match thực tế)
+			if (!context.Swipes.Any())
+			{
+				var sampleSwipes = new List<Swipe>
+				{
+					new Swipe
+					{
+						SwiperId = 1, // Nguyễn Hoàng Nam đã thích bạn
+						SwipedUserId = 4,
+						IsLike = true,
+						IsMatch = false,
+						CreatedAt = DateTime.UtcNow.AddDays(-1)
+					},
+					new Swipe
+					{
+						SwiperId = 2, // Trần Thu Trang đã thích bạn
+						SwipedUserId = 4,
+						IsLike = true,
+						IsMatch = false,
+						CreatedAt = DateTime.UtcNow.AddDays(-1)
+					}
+				};
+
+				context.Swipes.AddRange(sampleSwipes);
+				context.SaveChanges();
+			}
 		}
 	}
 }

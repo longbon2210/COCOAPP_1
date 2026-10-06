@@ -66,8 +66,27 @@ namespace CocoApp.API.Controllers
 			{
 				existingSwipe.IsLike = request.IsLike;
 				existingSwipe.CreatedAt = DateTime.UtcNow;
+
+				if (request.IsLike && !existingSwipe.IsMatch)
+				{
+					var targetLikedMe = _context.Swipes.FirstOrDefault(s => s.SwiperId == targetId && s.SwipedUserId == swiperId && s.IsLike);
+					if (targetLikedMe != null)
+					{
+						existingSwipe.IsMatch = true;
+						targetLikedMe.IsMatch = true;
+						if (!_context.Matches.Any(m => (m.User1Id == Math.Min(swiperId, targetId) && m.User2Id == Math.Max(swiperId, targetId))))
+						{
+							_context.Matches.Add(new Match
+							{
+								User1Id = Math.Min(swiperId, targetId),
+								User2Id = Math.Max(swiperId, targetId),
+								MatchedAt = DateTime.UtcNow
+							});
+						}
+					}
+				}
 				_context.SaveChanges();
-				return Ok(new { message = "Cập nhật lượt quẹt thành công!", isMatch = existingSwipe.IsMatch });
+				return Ok(new { message = existingSwipe.IsMatch ? "Chúc mừng! Hai bạn đã tương hợp (Match)!" : "Cập nhật lượt quẹt thành công!", isMatch = existingSwipe.IsMatch });
 			}
 
 			var swipe = new Swipe
@@ -106,6 +125,19 @@ namespace CocoApp.API.Controllers
 			_context.SaveChanges();
 
 			return Ok(new { message, isMatch });
+		}
+
+		// GET: api/swipes/my-matches
+		[HttpGet("my-matches")]
+		public IActionResult GetMyMatches()
+		{
+			int swiperId = 4;
+			var claimId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (!string.IsNullOrEmpty(claimId) && int.TryParse(claimId, out int parsedId))
+			{
+				swiperId = parsedId;
+			}
+			return GetUserMatches(swiperId);
 		}
 
 		// GET: api/swipes/matches hoặc api/swipe/matches
