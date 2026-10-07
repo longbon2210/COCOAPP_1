@@ -72,7 +72,31 @@ namespace CocoApp.API.Controllers
 			_context.Users.Add(newUser);
 			_context.SaveChanges();
 
-			return Ok(new { message = "Đăng ký tài khoản thành công!", user = newUser });
+			// Tạo JWT Token đăng nhập trực tiếp
+			var tokenHandler = new JwtSecurityTokenHandler();
+			var jwtKey = _configuration["Jwt:Key"] ?? "MotChuoiKyTuBiMatRatDaiVaKhoDoanChoDuAnCocoApp123!@#";
+			var key = Encoding.UTF8.GetBytes(jwtKey);
+			var claims = new List<Claim>
+			{
+				new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
+				new Claim(ClaimTypes.Email, newUser.Email ?? ""),
+				new Claim(ClaimTypes.Name, newUser.Name ?? "")
+			};
+			var tokenDescriptor = new SecurityTokenDescriptor
+			{
+				Subject = new ClaimsIdentity(claims),
+				Expires = DateTime.UtcNow.AddDays(30),
+				SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+			};
+			var token = tokenHandler.CreateToken(tokenDescriptor);
+			var jwtToken = tokenHandler.WriteToken(token);
+
+			return Ok(new 
+			{ 
+				message = "Đăng ký tài khoản thành công!", 
+				token = jwtToken, 
+				user = newUser 
+			});
 		}
 
 		// --- HÀM ĐĂNG NHẬP (FR-02) ---

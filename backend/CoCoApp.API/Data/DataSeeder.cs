@@ -140,6 +140,13 @@ namespace CocoApp.API.Data
 					BEGIN
 						EXEC sp_rename 'Swipes.SwipedId', 'SwipedUserId', 'COLUMN';
 					END
+					IF COL_LENGTH('Rooms', 'Distance') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN Distance NVARCHAR(100) NULL;
+					IF COL_LENGTH('Rooms', 'Floor') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN Floor NVARCHAR(50) NULL;
+					IF COL_LENGTH('Rooms', 'MoveInDate') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN MoveInDate NVARCHAR(100) NULL;
+					IF COL_LENGTH('Rooms', 'RoomType') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN RoomType NVARCHAR(100) NULL;
+					IF COL_LENGTH('Rooms', 'Description') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN Description NVARCHAR(MAX) NULL;
+					IF COL_LENGTH('Rooms', 'GenderPreference') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN GenderPreference NVARCHAR(50) NULL;
+					IF COL_LENGTH('Rooms', 'UniversityNear') IS NOT NULL ALTER TABLE Rooms ALTER COLUMN UniversityNear NVARCHAR(200) NULL;
 				");
 			}
 			catch (Exception ex)

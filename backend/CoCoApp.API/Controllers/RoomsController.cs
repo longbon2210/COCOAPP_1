@@ -41,6 +41,21 @@ namespace CocoApp.API.Controllers
 				room.Id = $"room_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
 			}
 
+			room.Title ??= "Phòng trọ sinh viên tiện nghi";
+			room.Address ??= "Đường Z115, Thái Nguyên";
+			room.UniversityNear ??= "ICTU";
+			room.Distance ??= "Cách trường 500m";
+			room.RoomType ??= "Phòng khép kín";
+			room.Floor ??= "Tầng 2";
+			room.MoveInDate ??= "Vào ở ngay";
+			room.LandlordName ??= "Chủ trọ";
+			room.LandlordPhone ??= "0988123456";
+			room.AuthorEmail ??= "sinhvien@ictu.edu.vn";
+			room.Description ??= "Phòng trọ sinh viên tiện nghi, an ninh tốt.";
+			room.GenderPreference ??= "Tất cả";
+			room.Images ??= new List<string> { "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800" };
+			room.Amenities ??= new List<string> { "Điều hòa", "Nóng lạnh", "Wifi" };
+
 			_context.Rooms.Add(room);
 			_context.SaveChanges();
 

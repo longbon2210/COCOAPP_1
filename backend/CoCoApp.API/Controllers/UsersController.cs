@@ -171,5 +171,102 @@ namespace CocoApp.API.Controllers
 
 			return Ok(new { message = "Cập nhật hồ sơ thành công!", user });
 		}
+
+		public class CreateRoommatePostDto
+		{
+			public int? Id { get; set; }
+			public string? Email { get; set; }
+			public string? Name { get; set; }
+			public string? University { get; set; }
+			public string? Major { get; set; }
+			public string? AvatarUrl { get; set; }
+			public string? Bio { get; set; }
+			public decimal? RentalBudget { get; set; }
+			public string? RoomLocation { get; set; }
+			public string? RoomStatus { get; set; }
+			public string? Gender { get; set; }
+			public bool? IsSmoker { get; set; }
+			public bool? HasPet { get; set; }
+			public string? StudyGoal { get; set; }
+			public int? CompatibilityScore { get; set; }
+			public bool? IsOnline { get; set; }
+		}
+
+		// POST: api/users (Đăng bài tìm bạn ở ghép / Cập nhật hồ sơ ở ghép)
+		[HttpPost]
+		public IActionResult CreateOrUpdateRoommatePost([FromBody] CreateRoommatePostDto request)
+		{
+			if (request == null) return BadRequest(new { error = "Dữ liệu hồ sơ không hợp lệ" });
+
+			var targetEmail = !string.IsNullOrWhiteSpace(request.Email)
+				? request.Email.Trim().ToLower()
+				: User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+
+			if (string.IsNullOrEmpty(targetEmail))
+			{
+				return BadRequest(new { error = "Thiếu thông tin email của người đăng bài" });
+			}
+
+			var user = _context.Users.FirstOrDefault(u => (u.Email ?? "").ToLower() == targetEmail);
+			if (user == null)
+			{
+				user = new Models.User
+				{
+					Email = targetEmail,
+					Name = !string.IsNullOrWhiteSpace(request.Name) ? request.Name : targetEmail.Split('@')[0],
+					PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123@"),
+					University = !string.IsNullOrWhiteSpace(request.University) ? request.University : "Đại học CNTT & Truyền Thông (ICTU)",
+					Faculty = "Công nghệ Thông tin",
+					Major = !string.IsNullOrWhiteSpace(request.Major) ? request.Major : "Công nghệ thông tin",
+					AcademicYear = "K21",
+					AvatarUrl = !string.IsNullOrWhiteSpace(request.AvatarUrl) ? request.AvatarUrl : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
+					Bio = request.Bio ?? "Sinh viên tìm bạn ở ghép văn minh, lịch sự.",
+					RentalBudget = request.RentalBudget ?? 1800000,
+					RoomLocation = !string.IsNullOrWhiteSpace(request.RoomLocation) ? request.RoomLocation : "Khu Z115, Thái Nguyên",
+					RoomStatus = !string.IsNullOrWhiteSpace(request.RoomStatus) ? request.RoomStatus : "Đang tìm bạn ở ghép",
+					Gender = !string.IsNullOrWhiteSpace(request.Gender) ? request.Gender : "Nam",
+					IsSmoker = request.IsSmoker ?? false,
+					HasPet = request.HasPet ?? false,
+					StudyGoal = !string.IsNullOrWhiteSpace(request.StudyGoal) ? request.StudyGoal : "Cùng học tập và chia sẻ phòng",
+					CompatibilityScore = request.CompatibilityScore ?? 92,
+					IsOnline = true
+				};
+				_context.Users.Add(user);
+			}
+			else
+			{
+				if (!string.IsNullOrWhiteSpace(request.Name)) user.Name = request.Name;
+				if (!string.IsNullOrWhiteSpace(request.University)) user.University = request.University;
+				if (!string.IsNullOrWhiteSpace(request.Major)) user.Major = request.Major;
+				if (!string.IsNullOrWhiteSpace(request.AvatarUrl)) user.AvatarUrl = request.AvatarUrl;
+				if (!string.IsNullOrWhiteSpace(request.Bio)) user.Bio = request.Bio;
+				if (request.RentalBudget.HasValue) user.RentalBudget = request.RentalBudget.Value;
+				if (!string.IsNullOrWhiteSpace(request.RoomLocation)) user.RoomLocation = request.RoomLocation;
+				if (!string.IsNullOrWhiteSpace(request.RoomStatus)) user.RoomStatus = request.RoomStatus;
+				if (!string.IsNullOrWhiteSpace(request.Gender)) user.Gender = request.Gender;
+				if (request.IsSmoker.HasValue) user.IsSmoker = request.IsSmoker.Value;
+				if (request.HasPet.HasValue) user.HasPet = request.HasPet.Value;
+				if (!string.IsNullOrWhiteSpace(request.StudyGoal)) user.StudyGoal = request.StudyGoal;
+				user.IsOnline = true;
+			}
+
+			_context.SaveChanges();
+
+			return StatusCode(StatusCodes.Status201Created, new
+			{
+				message = "Lưu bài đăng tìm bạn ở ghép thành công!",
+				user = new
+				{
+					id = user.Id,
+					email = user.Email,
+					name = user.Name,
+					university = user.University,
+					major = user.Major,
+					roomLocation = user.RoomLocation,
+					roomStatus = user.RoomStatus,
+					rentalBudget = user.RentalBudget
+				}
+			});
+		}
 	}
 }
