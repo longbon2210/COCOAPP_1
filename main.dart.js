@@ -31283,7 +31283,7 @@ return c.a(A.b1n(a,b,s,s,s,s))},
 e_(){var s,r=A.y6().gFo().h(0,"api")
 if(r!=null&&r.length!==0)return r
 s=A.y6().gyX()
-if(s.length!==0&&s!=="null"){if(B.c.m(s,":5000")||B.c.m(s,":3000"))return s
+if(s.length!==0&&s!=="null"){if(B.c.m(s,"localhost")||B.c.m(s,"127.0.0.1"))return"http://localhost:5000"
 if(B.c.m(s,"vercel.app")||B.c.m(s,"onrender.com")||B.c.m(s,"netlify.app"))return s}return"http://cocoapp-api.somee.com"},
 b9n(a,b,c,d){var s,r,q,p,o,n=A.u(d,c.i("T<0>"))
 for(s=c.i("G<0>"),r=0;r<1;++r){q=a[r]
