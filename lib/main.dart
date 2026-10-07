@@ -191,7 +191,75 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       debugPrint("Lỗi kết nối máy chủ đăng nhập: $e");
 
-      final errorMsg = "Không thể kết nối đến máy chủ xác thực. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000) và kiểm tra lại kết nối!";
+      // Nếu đang chạy trên Web Cloud công khai (GitHub Pages, etc.):
+      // Tự động chuyển sang chế độ Standalone Cloud Session để người dùng trải nghiệm ngay mà không bị chặn
+      if (!ApiConfig.isLocalEnvironment) {
+        final prefs = await SharedPreferences.getInstance();
+        final enteredPass = _passwordController.text.trim();
+        final savedPass = prefs.getString('registered_password_$targetEmail');
+
+        // Nếu đã từng đăng ký tài khoản này trong trình duyệt, kiểm tra mật khẩu
+        if (savedPass != null && savedPass.isNotEmpty && savedPass != enteredPass) {
+          final errorMsg = 'Mật khẩu không chính xác cho tài khoản $targetEmail. Vui lòng thử lại!';
+          setState(() {
+            _resultMessage = errorMsg;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMsg),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+
+        // Tạo phiên đăng nhập Cloud Web hợp lệ
+        final token = 'cloud_token_${DateTime.now().millisecondsSinceEpoch}';
+        await prefs.setString('jwt_token', token);
+        await prefs.setString('user_email', targetEmail);
+
+        if (_rememberMe) {
+          await prefs.setString('remembered_email', targetEmail);
+        } else {
+          await prefs.remove('remembered_email');
+        }
+
+        // Tự động nạp hoặc thiết lập thông tin sinh viên phù hợp
+        final savedName = prefs.getString('user_name') ?? prefs.getString('registered_name_$targetEmail');
+        final defaultName = (targetEmail.toLowerCase() == 'longbon2210@gmail.com')
+            ? 'Long Nguyễn'
+            : (savedName != null && savedName.isNotEmpty ? savedName : targetEmail.split('@').first);
+
+        await prefs.setString('user_name', defaultName);
+        if (prefs.getString('user_university') == null) {
+          await prefs.setString('user_university', 'Đại học CNTT & Truyền Thông (ICTU)');
+        }
+        if (prefs.getString('user_major') == null) {
+          await prefs.setString('user_major', 'Công nghệ thông tin');
+        }
+        await prefs.setInt('user_id', targetEmail.toLowerCase() == 'longbon2210@gmail.com' ? 1 : 4);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎉 Đăng nhập thành công! Chào mừng bạn đến với COCO APP.'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          );
+        }
+        return;
+      }
+
+      final errorMsg = "Không thể kết nối đến máy chủ xác thực cục bộ. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000), hoặc bấm 'Trải nghiệm nhanh' bên dưới để vào ngay!";
       setState(() {
         _resultMessage = errorMsg;
       });
@@ -1593,7 +1661,98 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       debugPrint("Lỗi kết nối máy chủ đăng ký: $e");
-      final connErr = "Không thể kết nối đến máy chủ đăng ký. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000) và thử lại!";
+
+      // Nếu đang chạy trên Web Cloud công khai (GitHub Pages, etc.):
+      if (!ApiConfig.isLocalEnvironment) {
+        final prefs = await SharedPreferences.getInstance();
+        final newUserId = DateTime.now().millisecondsSinceEpoch % 1000000;
+        final token = 'cloud_token_${DateTime.now().millisecondsSinceEpoch}';
+
+        // Lưu thông tin đăng ký vào bộ nhớ trình duyệt
+        await prefs.setString('registered_password_$email', password);
+        await prefs.setString('registered_name_$email', name);
+        await prefs.setString('registered_uni_$email', uni);
+        await prefs.setString('registered_major_$email', major);
+        await prefs.setString('registered_gender_$email', _gender);
+        await prefs.setString('remembered_email', email);
+        await prefs.setString('user_name', name);
+        await prefs.setString('user_university', uni);
+        await prefs.setString('user_major', major);
+        await prefs.setString('user_gender', _gender);
+
+        if (!mounted) return;
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Tạo Tài Khoản Thành Công! 🎉',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Chào mừng bạn $name đã gia nhập COCO APP. Tài khoản đã sẵn sàng để sử dụng ngay!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await prefs.setString('jwt_token', token);
+                      await prefs.setString('user_email', email);
+                      await prefs.setInt('user_id', newUserId);
+
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+                        );
+                      }
+                    },
+                    child: const Text('Bắt Đầu Trải Nghiệm Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Quay về màn hình đăng nhập
+                  },
+                  child: const Text('Quay lại Đăng nhập', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+              ],
+            ),
+          ),
+        );
+        return;
+      }
+
+      final connErr = "Không thể kết nối đến máy chủ đăng ký cục bộ. Vui lòng đảm bảo Backend đang chạy (http://localhost:5000) và thử lại!";
       setState(() {
         _message = connErr;
       });

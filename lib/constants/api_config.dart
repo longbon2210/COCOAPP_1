@@ -38,6 +38,14 @@ class ApiConfig {
     return dotnetLocalUrl;
   }
 
+  /// Kiểm tra xem ứng dụng đang chạy ở môi trường máy cục bộ (Localhost / Android Emulator / Desktop)
+  /// hay đang chạy trên Web Cloud công khai (GitHub Pages, etc.)
+  static bool get isLocalEnvironment {
+    if (!kIsWeb) return true;
+    final origin = Uri.base.origin.toLowerCase();
+    return origin.contains('localhost') || origin.contains('127.0.0.1');
+  }
+
   // Danh sách các Endpoints kết nối Backend API
   static String get login => '$baseUrl/api/auth/login';
   static String get register => '$baseUrl/api/auth/register';
