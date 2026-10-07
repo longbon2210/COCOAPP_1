@@ -20,9 +20,9 @@ class ApiConfig {
 
       final origin = Uri.base.origin;
       if (origin.isNotEmpty && origin != 'null') {
-        // Nếu đang chạy thử nghiệm cục bộ với cổng 5000 hoặc 3000
-        if (origin.contains(':5000') || origin.contains(':3000')) {
-          return origin;
+        // Nếu đang chạy thử nghiệm cục bộ trên localhost hoặc 127.0.0.1 (cổng 8080, 5000, hoặc bất kỳ cổng nào)
+        if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+          return dotnetLocalUrl; // Luôn kết nối trực tiếp đến Backend .NET API http://localhost:5000
         }
         // Nếu triển khai trên Vercel / Render / Netlify có proxy nội bộ
         if (origin.contains('vercel.app') || origin.contains('onrender.com') || origin.contains('netlify.app')) {
